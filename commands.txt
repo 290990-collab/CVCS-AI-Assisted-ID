@@ -1,0 +1,26 @@
+RAW DATA
+   ↓
+preprocess.py
+   ↓
+.pt graphs
+   ↓
+loader.py
+   ↓
+train_retrieval.py
+   ↓
+GNN encoder
+   ↓
+embeddings
+   ↓
+(FAISS dopo)
+
+------------------------------------------
+
+# preprocess
+python -m src.main --mode preprocess
+
+# train retrieval
+python -m src.main --mode train_retrieval
+
+# evaluate
+python -m src.main --mode evaluate

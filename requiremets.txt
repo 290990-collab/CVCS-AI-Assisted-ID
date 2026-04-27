@@ -8,4 +8,4 @@ matplotlib
 networkx
 pyyaml
 tqdm
-yaml
+pyyaml
