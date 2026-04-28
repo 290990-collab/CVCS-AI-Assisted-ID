@@ -3,6 +3,12 @@
 import yaml
 
 
-def load_config(path):
-    with open(path, "r") as f:
+# utils/config.py — approccio manuale, fragile
+import yaml, os
+
+def load_config(env="local"):
+    with open(f"configs/{env}.yaml") as f:
         return yaml.safe_load(f)
+
+cfg = load_config(os.getenv("ENV", "local"))
+print(cfg["model"]["hidden_dim"])

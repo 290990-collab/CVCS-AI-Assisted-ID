@@ -14,3 +14,4 @@ tqdm
 hydra-core
 diffusers
 transformers
+hydra-core

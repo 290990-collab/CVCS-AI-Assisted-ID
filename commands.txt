@@ -16,21 +16,21 @@ embeddings
 
 ------------------------------------------
 
-# preprocess
-python -m src.main --mode preprocess
-
-# train retrieval
-python -m src.main --mode train_retrieval
-
-# evaluate
-python -m src.main --mode evaluate
-
-------------------------------------------
-
 Environments:
 
 # In locale
 conda env create -f environment.yml
 
-# In HPC (dentro slurm_job.sh o a mano)
-conda env create -f hpc/environment.yml
+# In HPC (dentro slurm_job.sh)
+conda env create -f hpc/envhpc.yml
+
+------------------------------------------
+
+Hydra-core:
+
+python main.py mode=train_retrieval                         # usa local.yaml di default
+python main.py --config-name=hpc mode=train_retrieval       # usa hpc.yaml
+python main.py mode=train_retrieval model.hidden_dim=256    # override al volo
+python main.py training.lr=0.001 model.layers=4             # più override insieme
+
+

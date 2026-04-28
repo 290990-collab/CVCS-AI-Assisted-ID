@@ -1,31 +1,33 @@
 # Controller
-import argparse
 
-from src.training import train_retrieval
-from src.training import train_generation
+import hydra
+from omegaconf import DictConfig
+
 from src.data import preprocess
+from src.training import train_retrieval, train_generation
 from src.evaluation import evaluate
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", type=str, required=True,
-                        choices=["preprocess", "train_retrieval", "train_generation", "evaluate"])
-    parser.add_argument("--config", type=str, default="configs/local.yaml")
+@hydra.main(config_path="configs", config_name="local", version_base=None)
+def main(cfg: DictConfig):
 
-    args = parser.parse_args()
+    mode = cfg.mode  # passato da CLI: python main.py mode=train_retrieval
 
-    if args.mode == "preprocess":
-        preprocess(args.config)
+    if mode == "preprocess":
+        preprocess(cfg)
 
-    elif args.mode == "train_retrieval":
-        train_retrieval(args.config)
+    elif mode == "train_retrieval":
+        train_retrieval(cfg)
 
-    elif args.mode == "train_generation":
-        train_generation(args.config)
+    elif mode == "train_generation":
+        train_generation(cfg)
 
-    elif args.mode == "evaluate":
-        evaluate(args.config)
+    elif mode == "evaluate":
+        evaluate(cfg)
+
+    else:
+        raise ValueError(f"Modalità non riconosciuta: {mode}. "
+                         f"Scegli tra: preprocess, train_retrieval, train_generation, evaluate")
 
 
 if __name__ == "__main__":
