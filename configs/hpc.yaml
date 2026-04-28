@@ -1,0 +1,13 @@
+# configs/hpc.yaml
+data:
+  # root: "/scratch/datasets/floorplan/"
+  batch_size: 64
+
+model:
+  hidden_dim: 256
+  num_layers: 6
+
+training:
+  lr: 0.0005
+  epochs: 200
+  device: cuda

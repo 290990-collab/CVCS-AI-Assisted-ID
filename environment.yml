@@ -1,0 +1,41 @@
+# LOCALE: CPU
+
+name: floorplan-env
+channels:
+  - pytorch
+  - pyg
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - seaborn
+  - tqdm
+  - pyyaml
+  - einops
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cpuonly                  # <-- CPU locale
+  - pyg
+  - pytorch-geometric
+  - faiss-cpu                # <-- CPU locale
+  - hydra-core
+  - pytest
+  - pytest-cov
+  - black
+  - isort
+  - jupyter
+  - ipywidgets
+  - pip:
+      - networkx
+      - diffusers
+      - transformers
+      - scikit-learn
+      - umap-learn
+      - tensorboard

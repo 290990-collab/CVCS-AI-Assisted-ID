@@ -1,3 +1,6 @@
+# requirements.txt
+# Dipendenze core del progetto — per installazione completa usa environment.yml
+
 torch
 torch-geometric
 numpy
@@ -8,4 +11,6 @@ matplotlib
 networkx
 pyyaml
 tqdm
-pyyaml
+hydra-core
+diffusers
+transformers

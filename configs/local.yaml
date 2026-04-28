@@ -1,8 +1,13 @@
+# configs/local.yaml
 data:
-  raw_path: "data/raw"
-  processed_path: "data/processed"
+  # root: "data/"
+  batch_size: 16
+
+model:
+  hidden_dim: 128
+  num_layers: 3
 
 training:
-  epochs: 10
-  batch_size: 32
   lr: 0.001
+  epochs: 50
+  device: cpu

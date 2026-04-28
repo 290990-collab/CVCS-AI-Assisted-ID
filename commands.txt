@@ -24,3 +24,13 @@ python -m src.main --mode train_retrieval
 
 # evaluate
 python -m src.main --mode evaluate
+
+------------------------------------------
+
+Environments:
+
+# In locale
+conda env create -f environment.yml
+
+# In HPC (dentro slurm_job.sh o a mano)
+conda env create -f hpc/environment.yml

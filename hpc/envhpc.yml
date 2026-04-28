@@ -1,0 +1,37 @@
+# HPC: GPU
+
+name: floorplan-env
+channels:
+  - pytorch
+  - pyg
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - seaborn
+  - tqdm
+  - pyyaml
+  - einops
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1        # <-- verifica la versione CUDA nel cluster
+  - pyg
+  - pytorch-geometric
+  - faiss-gpu                
+  - hydra-core
+  - pytest
+  - black
+  - isort
+  - pip:
+      - networkx
+      - diffusers
+      - transformers
+      - scikit-learn
+      - tensorboard
