@@ -1,0 +1,21 @@
+# requirements.txt 
+#   --> installare pacchetti nell'ambiente virtuale già creato da te
+
+# Per installazione completa usa:
+#   conda env create -f environment.yml
+#   --> crea l'ambiente "floorplan-env" con dentro già tutto 
+
+torch
+torch-geometric
+numpy
+pandas
+scikit-learn
+faiss-cpu
+matplotlib
+networkx
+pyyaml
+tqdm
+hydra-core
+diffusers
+transformers
+hydra-core
