@@ -1,14 +1,19 @@
-from src.utils.config import load_config
+from pathlib import Path
+
+from omegaconf import DictConfig
 
 
-def preprocess_data(config_path):
-    config = load_config(config_path)
+def preprocess_data(cfg: DictConfig) -> None:
+    raw_root = Path(cfg.data.raw_root)
+    processed_root = Path(cfg.data.processed_root)
+    processed_root.mkdir(parents=True, exist_ok=True)
 
     print("Starting preprocessing...")
-    print(f"Data path: {config['data']['raw_path']}")
+    print(f"Raw data root: {raw_root}")
+    print(f"Processed data root: {processed_root}")
 
-    # TODO: carica dati grezzi
-    # TODO: costruisci grafi con graph_builder
-    # TODO: salva dataset processato
+    # TODO: load raw CAD files from raw_root
+    # TODO: convert each sample to graph with src.data.graph_builder.build_graph
+    # TODO: serialize processed dataset to processed_root
 
     print("Preprocessing completed.")

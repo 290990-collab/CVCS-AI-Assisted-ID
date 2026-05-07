@@ -1,14 +1,9 @@
-# Config YAML file loader
+from pathlib import Path
 
 import yaml
 
 
-# utils/config.py — approccio manuale, fragile
-import yaml, os
-
-def load_config(env="local"):
-    with open(f"configs/{env}.yaml") as f:
-        return yaml.safe_load(f)
-
-cfg = load_config(os.getenv("ENV", "local"))
-print(cfg["model"]["hidden_dim"])
+def load_config_file(path: str | Path) -> dict:
+    """Optional helper for scripts not using Hydra."""
+    with Path(path).open("r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle)

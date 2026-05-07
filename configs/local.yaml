@@ -1,13 +1,17 @@
-# configs/local.yaml
+mode: preprocess
+
 data:
-  # root: "data/"
+  raw_root: "data/raw"
+  processed_root: "data/processed"
   batch_size: 16
 
 model:
+  in_dim: 16
   hidden_dim: 128
   num_layers: 3
+  embedding_dim: 64
 
 training:
   lr: 0.001
-  epochs: 50
+  epochs: 5
   device: cpu
