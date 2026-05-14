@@ -21,7 +21,7 @@ dependencies:
   - pytorch
   - torchvision
   - torchaudio
-  - pytorch-cuda=12.1        # <-- verifica la versione CUDA nel cluster
+  - pytorch-cuda=11.8       
   - pyg
   - pytorch-geometric
   - faiss-gpu                
@@ -34,4 +34,8 @@ dependencies:
       - diffusers
       - transformers
       - scikit-learn
-      - tensorboard
+      - pillow
+      - ipykernel
+      - ipython
+      - wandb=0.18.1
+      - tornado
