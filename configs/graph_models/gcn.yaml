@@ -1,0 +1,82 @@
+# Ricetta completa per l'encoder GCN (baseline isotropo).
+#
+# A differenza del ramo vision (encoder frozen -> un solo YAML di kwargs), qui
+# la GNN si ALLENA: questo file descrive un intero run di training self-supervised
+# (InfoNCE). Le chiavi corrispondono 1:1 agli argomenti di
+# `src/graph/training/train_gnn.py` (underscore -> `--flag`, tradotti da
+# scripts/graph/_common.sh), quindi "un YAML = un job". Cambiare encoder = lanciare
+# un altro file di questa cartella.
+#
+# GCN (GCNConv): media pesata simmetrica dei vicini, isotropa, NON usa edge_attr
+# (ignora il tipo di relazione). E' la baseline contro cui misurare GAT/SAGE.
+
+encoder: gcn                 # chiave del GRAPH_ENCODER_REGISTRY (gcn | gat | sage)
+variant: base                # etichetta -> namespacing di save_dir (embeddings/graph/<encoder>/<variant>)
+                             # ⚠️ negli sweep NON editare questo campo: sovrascrivilo da CLI
+                             # (--variant tau05 --temperature 0.5), cosi' le varianti non si
+                             # sovrascrivono a vicenda in embeddings/graph/<encoder>/<variant>/
+
+# --- architettura ---
+hidden_dim: 128              # larghezza dei layer di convoluzione
+out_dim: 128                 # dimensione dell'embedding indicizzato in FAISS
+num_layers: 2                # grafi RPLAN a 4-8 nodi, diametro 2-3: 2 hop evitano over-smoothing
+pooling: add                 # add preserva il CONTEGGIO stanze (asse di rilevanza); mean lo normalizza via
+dropout: 0.0                 # regolarizzazione tra i layer
+raw_skip: true               # concatena l'add-pool GREZZO prima della proiezione:
+                             # con l'one-hot del tipo quello E' l'istogramma delle stanze,
+                             # quindi composizione/geometria arrivano all'uscita per
+                             # costruzione e la rete puo' dedicare capacita' alla topologia
+                             # (ablation 28 lug: senza rete si fa gia' 0.805 di media)
+
+# --- adjustment (transform PyG applicata al volo, cache grezza) ---
+normalize: true              # z-score delle 6 colonne geometriche (stats SOLO dal train, no leakage)
+drop_self_loops: true        # toglie i self-loop dei .mat (GCN li riaggiunge da solo)
+
+# --- augmentation (quali invarianze insegniamo) ---
+# ⚠️ Non tutte le augmentation sono "gratis": ognuna dice al modello che una
+# perturbazione NON cambia la pianta, e va confrontata con la ground truth.
+#  - flip/rot  -> invarianza VERA: composizione, topologia e geometria sono tutte
+#                 esattamente invarianti a rotazioni/riflessioni -> guadagno puro.
+#  - jitter    -> quasi vera (sposta di poco la sola similarita' geometrica).
+#  - edge_drop -> parziale: tocca l'asse topologia, tenere basso.
+#  - node_drop -> FALSA sul full retrieval (cambia la composizione), vera sul
+#                 partial: serve alla robustezza su query incomplete.
+# ⚠️ Con 5 nodi e node_drop=0.1 il 59% delle viste non perde alcun nodo: le
+# probabilita' vanno lette rispetto a grafi piccolissimi (4-8 nodi).
+node_drop: 0.2               # frazione di nodi azzerati/isolati per vista
+edge_drop: 0.1               # frazione di archi rimossi per vista
+feat_mask: 0.1               # prob. per CELLA (nodo, colonna) -- non piu' per colonna globale
+geom_jitter: 0.1             # dev.std del rumore sulle 6 colonne geometriche (unita' z-score)
+flip_prob: 0.5               # riflessione della pianta
+rot_prob: 0.5                # rotazione di 90/180/270 gradi
+
+# --- ottimizzazione ---
+lr: 1.0e-3
+weight_decay: 1.0e-5
+epochs: 150                   # tetto massimo (early stopping ferma prima)
+batch_size: 256
+temperature: 0.3             # tau InfoNCE. Alzata da 0.2 (28 lug): l'8,17% della gallery ha la
+                             # STESSA composizione della query (classe di equivalenza mediana ~3980),
+                             # quindi in un batch da 256 circa 21 dei 255 "negativi" sono in realta'
+                             # rilevanti e la loss li allontana. Un tau piu' alto smorza la pressione
+                             # sui negativi piu' vicini, cioe' proprio quelli. Altro punto OFAT: 0.5.
+patience: 10                 # valutazioni-di-SELEZIONE senza miglioramento prima dello stop.
+                             # ⚠️ conta le SONDE, non le epoche: con probe_every=1 sono 10 epoche.
+                             # Misurato sul giro 74121: 0/20 epoche dopo il picco lo superavano.
+seed: 42
+
+# --- selezione del checkpoint (sonda di retrieval sul valid) ---
+# I pesi migliori si scelgono sull'nDCG di un mini-retrieval sul valid, NON sulla
+# val-loss InfoNCE: le due divergono (vedi docstring di train_gnn.py), quindi
+# fermarsi sulla loss premiava il modello sbagliato.
+probe_every: 1               # ogni quante epoche girare la sonda (0 = off -> criterio legacy val-loss).
+                             # Costa ~2,6 s/epoca (~20%): con 1 la selezione ha granularita' massima.
+probe_queries: 500           # query della sonda (righe della sua gallery)
+probe_gallery: 5000          # grafi nella gallery della sonda (0 = tutto il valid)
+probe_k: 10                  # profondita' dell'nDCG di selezione
+select_criterion: topology       # mean | composition | topology | geometry
+
+# --- logging opzionale (Weights & Biases) ---
+wandb: false
+wandb_project: cvcs-graph
+wandb_mode: offline          # online | offline (offline per nodi senza rete)

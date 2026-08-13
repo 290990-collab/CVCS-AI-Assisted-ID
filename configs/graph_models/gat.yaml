@@ -1,0 +1,62 @@
+# Ricetta completa per l'encoder GAT (attenzione sugli archi).
+#
+# Vedi gcn.yaml per lo schema: le chiavi corrispondono agli argomenti di
+# `src/graph/training/train_gnn.py`, tradotte in `--flag` da scripts/graph/_common.sh.
+#
+# GAT (GATv2Conv): pesa i vicini con un'attenzione DINAMICA ed e' l'UNICO encoder
+# che consuma `edge_attr` = il tipo di relazione RPLAN (0..9). Le `heads` teste di
+# attenzione sono mediate (concat=False nel modello) per tenere la larghezza costante.
+
+encoder: gat
+variant: base
+                             # ⚠️ negli sweep NON editare questo campo: sovrascrivilo da CLI
+                             # (--variant tau05 --temperature 0.5), cosi' le varianti non si
+                             # sovrascrivono a vicenda in embeddings/graph/<encoder>/<variant>/
+
+# --- architettura ---
+hidden_dim: 128
+out_dim: 128
+num_layers: 2
+pooling: add
+dropout: 0.0
+raw_skip: true               # vedi gcn.yaml
+
+# --- specifici GAT ---
+heads: 4                     # numero di teste di attenzione (mediate, larghezza invariata)
+attn_dropout: 0.0            # dropout sui coefficienti di attenzione
+# edge_dim NON e' un flag: e' fissato a NUM_RELATION_TYPES dentro train_gnn (GAT usa edge_attr).
+
+# --- adjustment ---
+normalize: true
+drop_self_loops: true
+
+# --- augmentation (vedi gcn.yaml per il razionale delle invarianze) ---
+node_drop: 0.2
+edge_drop: 0.1
+feat_mask: 0.1               # per CELLA (nodo, colonna)
+geom_jitter: 0.1
+flip_prob: 0.5
+rot_prob: 0.5
+
+# --- ottimizzazione ---
+lr: 1.0e-3
+weight_decay: 1.0e-5
+epochs: 150                  # tetto massimo (early stopping ferma prima)
+batch_size: 256
+temperature: 0.3             # vedi gcn.yaml (alzata da 0.2: 8,17% di falsi negativi sulla composizione)
+patience: 10                 # valutazioni-di-SELEZIONE senza miglioramento prima dello stop.
+                             # ⚠️ conta le SONDE, non le epoche: con probe_every=1 sono 10 epoche.
+                             # Misurato sul giro 74121: 0/20 epoche dopo il picco lo superavano.
+seed: 42
+
+# --- selezione del checkpoint (vedi gcn.yaml) ---
+probe_every: 1
+probe_queries: 500
+probe_gallery: 5000
+probe_k: 10
+select_criterion: topology
+
+# --- logging opzionale ---
+wandb: false
+wandb_project: cvcs-graph
+wandb_mode: offline

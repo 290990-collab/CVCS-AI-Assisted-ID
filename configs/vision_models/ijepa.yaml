@@ -1,0 +1,11 @@
+# kwargs passati a IJepaEncoder(**kwargs)
+#
+# varianti: facebook/ijepa_vith14_1k (1280d) |
+#           facebook/ijepa_vith14_22k | facebook/ijepa_vitg16_22k (1408d)
+# NOTA: I-JEPA esiste solo in taglie grandi (ViT-H / ViT-g): e' piu' pesante
+# degli altri encoder del benchmark.
+hf_name: facebook/ijepa_vith14_1k
+image_size: 224          # risoluzione dei checkpoint I-JEPA ufficiali (sweep: multipli di 14)
+pooling: natural         # natural/mean (coincidono, niente CLS) | gem
+gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
+extraction_layer: -1     # layer da cui leggere i patch token: -1 ultimo, -2 penultimo, ...

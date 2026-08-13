@@ -1,0 +1,70 @@
+# Config principale del retrieval vision.
+#
+# Per cambiare encoder: modifica SOLO `model.name`.
+# I kwargs di ogni encoder vivono in configs/vision_models/<name>.yaml e
+# vengono innestati automaticamente da src/vision/utils/config.load_vision_config().
+
+model:
+  name: dinov2                                                      # dinov2 | dinov3 | siglip2 | radio | ijepa | tipsv2
+  variant: base                                                     # etichetta della variante (namespacing di save_dir/visualizzazioni)
+  device: cuda                                                      # cuda | cpu
+  config_dir: configs/vision_models                                 # cartella dei preset per-encoder
+
+retrieval:
+  data_dir: /work/cvcs2026/ai_interior_design/datasets/RPLAN/Interface/static/Data/snapshot_train
+  batch_size: 256
+  save_dir: embeddings/vision/${model.name}/${model.variant}        # una cartella per encoder+variante (no mix nel benchmark)
+
+whitening:
+  enabled: true                                                     # centering + decorrelazione + scaling a varianza unitaria + L2-normalization
+  eps: 1.0e-6
+  dim: null                                                         # null = tieni tutte le D; int = riduzione PCA alle top-D componenti (es. 768)
+                                                                    # dim--> per RIDUZIONE DI DIMENSIONE ("null" mantiene larghezza nativa di ogni encoder)
+
+# Projection head allenabile (Fase 3), applicata sopra l'encoder frozen.
+# enabled=true in evaluate/visualization carica head.pt da retrieval.save_dir.
+head:
+  enabled: false
+  hidden_dim: 1024
+  out_dim: 256
+
+# Training della head (self-supervised A+): positivi = pianta degradata (+ flip/rot90).
+training:
+  epochs: 60                                                        # tetto massimo (con patience > 0 l'early stopping ferma prima)
+  lr: 1.0e-3
+  batch_size: 4096                                                  # batch grande = molti negativi in-batch
+  weight_decay: 1.0e-4
+  temperature: 0.07                                                 # τ InfoNCE (iperparametro da ablare)
+  views_per_plan: 3                                                 # V viste positive per pianta (iperparametro)
+  mask_fraction: [0.1, 0.5]                                         # frazione di stanze rimosse per vista (range)
+  augment: true                                                     # A+: flip/rot90 oltre al masking
+  open_boundary: true                                               # incompletezza visibile (no muri di sigillatura)
+  split_pool: [train, valid]                                        # coppie generate su train+valid; il training separa train (fit) da valid (early stop)
+  patience: 8                                                       # epoche senza miglioramento della val-loss prima dello stop (0 = disattivo)
+  seed: 42
+
+# Logging opzionale su Weights & Biases (solo training head). enabled=false = nessuna dipendenza.
+wandb:
+  enabled: true
+  project: cvcs-head
+  mode: online                                                      # online | offline
+
+eval:
+  num_queries: 2000
+  seed: 42
+  split: null                                                       # null = intera gallery come query pool; valid|test = solo quello split
+  k_values: [1, 5, 10, 100]                                         # profondità per nDCG/Recall/mAP
+  perquery_dir: null                                                # null = salva solo le medie a schermo (comportamento di default);
+                                                                    # path = scrive anche <dir>/vision_<encoder_variante_contributo>_<modalità>_<split>.npz
+                                                                    # con il valore di OGNI query (per confronti appaiati e significatività)
+
+# Partial Layout Retrieval: query degradata, gallery
+# invariata. Se enabled, evaluate.py usa questa modalità al posto della full.
+partial:
+  enabled: true
+  seed: 42
+  open_boundary: true                                               # rendi visibile l'incompletezza (no muri di sigillatura)
+  strategies:
+    random:   { enabled: true, fractions: [0.0, 0.25, 0.5, 0.75] }  # curva masking-level
+    semantic: { enabled: true, keep_types: [0, 2, 3] }              # tieni Living/Kitchen/Bathroom
+    topology: { enabled: true, max_degree: 1 }                      # togli le stanze foglia

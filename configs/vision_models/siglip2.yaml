@@ -1,0 +1,10 @@
+# kwargs passati a SigLIP2Encoder(**kwargs)
+#
+# varianti: google/siglip2-base-patch16-224 (224px) |
+#           google/siglip2-base-patch16-256 (256px) |
+#           google/siglip2-so400m-patch14-384 (384px, piu' forte ma piu' pesante)
+# NOTA: usare le varianti a risoluzione FISSA, non la "naflex".
+hf_name: google/siglip2-base-patch16-224
+image_size: 224          # DEVE combaciare col checkpoint: -256 -> 256, -384 -> 384 (sweep risoluzione = cambio hf_name)
+pooling: natural         # natural(attention-pool) | mean | gem
+gem_p: 3.0               # esponente del GeM (solo se pooling=gem)

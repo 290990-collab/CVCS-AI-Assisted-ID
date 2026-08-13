@@ -1,0 +1,10 @@
+# kwargs passati a RADIOEncoder(**kwargs)
+#
+# varianti: nvidia/C-RADIOv2-B (ViT-B) | nvidia/C-RADIOv2-L (ViT-L) |
+#           nvidia/RADIO (ViT-H, piu' pesante)
+# NOTA: RADIO si carica con trust_remote_code=True (codice di modeling custom
+# scaricato al primo uso) e normalizza l'input internamente.
+hf_name: nvidia/C-RADIOv2-B
+image_size: 224          # multiplo del patch size (16); risoluzione flessibile (sweep libero)
+pooling: natural         # natural(summary token) | mean | gem sulle spatial features
+gem_p: 3.0               # esponente del GeM (solo se pooling=gem)

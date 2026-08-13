@@ -1,0 +1,20 @@
+# kwargs passati a PESpatialEncoder(**kwargs)
+#
+# varianti timm: vit_pe_spatial_base_patch16_512.fb     (768d, 86M, 512px nativa)
+#                vit_pe_spatial_large_patch14_448.fb    (448px)
+#                vit_pe_spatial_gigantic_patch14_448.fb (1536d, 1.85B, NO token CLS)
+# NOTA: i pesi arrivano da timm (hub HF `timm/vit_pe_spatial_base_patch16_512.fb`,
+# apache-2.0, non gated), NON dal repo `facebook/PE-Spatial-B16-512`, che pubblica
+# un .pt grezzo utilizzabile solo col pacchetto `perception_models` di Meta.
+# La normalizzazione e' mean=std=0.5 (non ImageNet): la legge il codice dal
+# pretrained_cfg, non va scritta qui.
+timm_name: vit_pe_spatial_base_patch16_512.fb
+image_size: 224          # allineata al resto della griglia. A differenza di pecore la
+                         # risoluzione NON e' bloccata: timm ricampiona il pos_embed
+                         # (1025 -> 197 token). 512 e' la nativa del checkpoint e vale
+                         # come variante di sweep. Vincolo: multipli di 16.
+pooling: natural         # natural(token CLS) | mean | gem sui patch token — 768d in tutti e tre
+gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
+extraction_layer: -1     # layer da cui leggere i token: -1 ultimo, -2 penultimo, ...
+                         # A differenza di PE-Core, qui il fine-tuning denso lavora
+                         # proprio sull'uscita: l'ablation sui layer e' meno scontata.

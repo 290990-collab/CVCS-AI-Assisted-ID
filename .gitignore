@@ -1,0 +1,69 @@
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.ipynb_checkpoints/
+
+# =========================
+# CACHE / TOOLING
+# =========================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# =========================
+# IDE (VSCode)
+# =========================
+.vscode/
+
+# =========================
+# LOGS & HPC JOB OUTPUTS
+# =========================
+logs/
+*.log
+*.out
+*.err
+slurm-*.out
+
+# =========================
+# PROJECT ARTIFACTS (not versioned)
+# =========================
+embeddings/
+results/
+papers/
+graphify-out/
+wandb/
+notebooks/
+
+# =========================
+# HEAVY FILES (safety net, anywhere in the tree)
+# =========================
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.mat
+*.h5
+*.hdf5
+*.faiss
+*.index
+*.xlsx
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.pkl
+*.parquet
+
+# =========================
+# OS
+# =========================
+.DS_Store

@@ -1,0 +1,64 @@
+# Ricetta completa per l'encoder GraphSAGE (separa se' stesso dai vicini).
+#
+# Vedi gcn.yaml per lo schema: le chiavi corrispondono agli argomenti di
+# `src/graph/training/train_gnn.py`, tradotte in `--flag` da scripts/graph/_common.sh.
+#
+# ATTENZIONE: il file si chiama graph_sage.yaml ma la chiave `encoder` e' `sage`
+# (nome nel GRAPH_ENCODER_REGISTRY / choices di --encoder). Il basename del file e'
+# solo l'etichetta usata dagli script per iterare.
+#
+# GraphSAGE (SAGEConv): concatena la trasformazione del nodo stesso con
+# l'aggregato dei vicini -> preserva l'IDENTITA' del nodo (utile per non perdere
+# il tipo di stanza). L'aggregatore dei vicini e' configurabile via `aggr`.
+
+encoder: sage
+variant: base
+                             # ⚠️ negli sweep NON editare questo campo: sovrascrivilo da CLI
+                             # (--variant tau05 --temperature 0.5), cosi' le varianti non si
+                             # sovrascrivono a vicenda in embeddings/graph/<encoder>/<variant>/
+
+# --- architettura ---
+hidden_dim: 128
+out_dim: 128
+num_layers: 2
+pooling: add
+dropout: 0.0
+raw_skip: true               # vedi gcn.yaml
+
+# --- specifici SAGE ---
+aggr: mean                   # aggregatore dei vicini: mean | max | add | lstm
+
+# --- adjustment ---
+normalize: true
+drop_self_loops: true
+
+# --- augmentation (vedi gcn.yaml per il razionale delle invarianze) ---
+node_drop: 0.2
+edge_drop: 0.1
+feat_mask: 0.1               # per CELLA (nodo, colonna)
+geom_jitter: 0.1
+flip_prob: 0.5
+rot_prob: 0.5
+
+# --- ottimizzazione ---
+lr: 1.0e-3
+weight_decay: 1.0e-5
+epochs: 150
+batch_size: 256
+temperature: 0.3             # vedi gcn.yaml (alzata da 0.2: 8,17% di falsi negativi sulla composizione)
+patience: 10                 # valutazioni-di-SELEZIONE senza miglioramento prima dello stop.
+                             # ⚠️ conta le SONDE, non le epoche: con probe_every=1 sono 10 epoche.
+                             # Misurato sul giro 74121: 0/20 epoche dopo il picco lo superavano.
+seed: 42
+
+# --- selezione del checkpoint (vedi gcn.yaml) ---
+probe_every: 1
+probe_queries: 500
+probe_gallery: 5000
+probe_k: 10
+select_criterion: topology
+
+# --- logging opzionale ---
+wandb: false
+wandb_project: cvcs-graph
+wandb_mode: offline
