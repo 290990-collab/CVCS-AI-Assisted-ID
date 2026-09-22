@@ -36,7 +36,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from src.data.rplan_metadata import get_split, load_metadata
-from src.vision.data.vision_partial_query import make_partial_query
+from src.vision.data.vision_damage import check_head_damage, room_damage_image
 from src.vision.models.vision_model_manager import VisionModelManager
 from src.vision.utils.config import load_vision_config
 
@@ -63,7 +63,8 @@ class _PartialViewDataset(Dataset):
     dall'indice posizionale, cosi' la chiave di cache combacia col determinismo.
     """
 
-    def __init__(self, plan_paths, transform, views, frac_range, augment, open_boundary, seed, cache_dir):
+    def __init__(self, plan_paths, transform, views, frac_range, augment, open_boundary, seed, cache_dir,
+                 damage="random"):
         self.paths = plan_paths
         self.transform = transform
         self.views = views
@@ -72,6 +73,7 @@ class _PartialViewDataset(Dataset):
         self.open_boundary = open_boundary
         self.seed = seed
         self.cache_dir = cache_dir
+        self.damage = check_head_damage(damage)
 
     def __len__(self) -> int:
         return len(self.paths) * self.views
@@ -89,7 +91,7 @@ class _PartialViewDataset(Dataset):
         rng = random.Random(f"{self.seed}:{stem}:{v}")   # deterministico per (pianta, vista)
         meta = load_metadata(path)
         frac = rng.uniform(self.frac_lo, self.frac_hi)
-        img, _ = make_partial_query(path, meta, "random", {"fraction": frac}, rng, self.open_boundary)
+        img, _ = room_damage_image(path, meta, self.damage, {"fraction": frac}, rng, self.open_boundary)
         if self.augment:
             img = _augment(img, rng)
 
@@ -103,13 +105,19 @@ class _PartialViewDataset(Dataset):
 def _render_cache_dir(save_dir: Path, config) -> Path:
     """Cache condivisa delle viste renderizzate: `embeddings/vision/_render_cache/<hash>`.
     L'hash copre tutto cio' che cambia l'immagine (masking, augment, seed) ma NON
-    l'encoder/pooling -> tutti i (modello x pooling) con la stessa config la riusano."""
-    key = "|".join([
+    l'encoder/pooling -> tutti i (modello x pooling) con la stessa config la riusano.
+    Il danno (`training.damage`, 15 set) entra nella chiave solo se non e' lo storico
+    `random`: le cache gia' su disco mantengono il loro hash."""
+    parts = [
         f"seed={config.training.seed}",
         f"frac={tuple(config.training.mask_fraction)}",
         f"aug={bool(config.training.augment)}",
         f"open={bool(config.training.get('open_boundary', True))}",
-    ])
+    ]
+    damage = check_head_damage(config.training.get("damage", "random"))
+    if damage != "random":
+        parts.append(f"damage={damage}")
+    key = "|".join(parts)
     h = hashlib.md5(key.encode()).hexdigest()[:12]
     return save_dir.parents[1] / "_render_cache" / h
 
@@ -139,9 +147,10 @@ def build_pairs(config) -> None:
     manager = VisionModelManager(config)
     encoder, device = manager.encoder, manager.device
 
+    damage = check_head_damage(config.training.get("damage", "random"))
     cache_dir = _render_cache_dir(save_dir, config)
     cache_dir.mkdir(parents=True, exist_ok=True)
-    print(f"[pairs] cache viste renderizzate (condivisa): {cache_dir}")
+    print(f"[pairs] danno delle viste: {damage} | cache viste renderizzate (condivisa): {cache_dir}")
 
     dataset = _PartialViewDataset(
         plan_paths,
@@ -152,6 +161,7 @@ def build_pairs(config) -> None:
         open_boundary=bool(config.training.get("open_boundary", True)),
         seed=int(config.training.seed),
         cache_dir=cache_dir,
+        damage=damage,
     )
     loader = DataLoader(
         dataset,
@@ -172,8 +182,9 @@ def build_pairs(config) -> None:
         anchors=anchors,
         positives=positives,
         splits=np.array(row_splits),
+        damage=np.array(damage),      # 15 set: train_projection lo confronta con config e probe
     )
-    print(f"[pairs] salvato {save_dir/'pairs.npz'}: anchors {anchors.shape}, positives {positives.shape}")
+    print(f"[pairs] salvato {save_dir/'pairs.npz'}: anchors {anchors.shape}, positives {positives.shape} | danno {damage}")
 
 
 def main():

@@ -1,7 +1,7 @@
 #!/bin/bash
 # scripts/vision/05_eval_head_full.sh
 # EVAL FULL, contributi con HEAD: head + head+whitening, per ogni (modello × pooling).
-# Richiede STAGE A + STAGE C + STAGE D (head.pt presente). Query = split test.
+# Richiede STAGE A + STAGE C + STAGE D (head.pt presente). Query = split $EVAL_SPLIT (default valid).
 # Confronta con 04 (frozen) per misurare il contributo della head.
 #
 # Uso:
@@ -31,7 +31,13 @@ source /work/cvcs2026/ai_interior_design/CVCS-AI-Assisted-ID/scripts/vision/_com
 cd "$PROJECT_DIR"
 mkdir -p logs
 
-echo "=== $(date) | EVAL FULL head (head + head+whiten) | modelli: $(select_models "$1") ==="
+# Split delle query. Default `valid`: il vincolo DURO 1 dice che il test non
+# sceglie nulla, e fino al 24 ago questi script avevano `test` cablato senza
+# override (rilievo A1). Per rileggere il test va chiesto esplicitamente:
+#   EVAL_SPLIT=test sbatch <questo script> [modello] [risoluzione]
+EVAL_SPLIT="${EVAL_SPLIT:-valid}"
+
+echo "=== $(date) | EVAL FULL head (head + head+whiten) | modelli: $(select_models "$1") | split: $EVAL_SPLIT ==="
 nvidia-smi
 
 for MODEL in $(select_models "$1"); do
@@ -39,7 +45,7 @@ for MODEL in $(select_models "$1"); do
     for RES in $(select_resolutions "$MODEL" "${2:-}"); do
       VAR=$(variant_for "$POOL" "$RES")
       RFLAGS=$(res_flags "$RES")
-      COMMON="model.name=$MODEL model.variant=$VAR model.kwargs.pooling=$POOL $RFLAGS partial.enabled=false eval.split=test head.enabled=true"
+      COMMON="model.name=$MODEL model.variant=$VAR model.kwargs.pooling=$POOL $RFLAGS partial.enabled=false eval.split=$EVAL_SPLIT head.enabled=true"
       echo ""
       echo "########  EVAL FULL: $(label_for "$MODEL" "$POOL" "$RES") / head  ########"
       python -m src.vision.evaluation.evaluate $COMMON whitening.enabled=false

@@ -69,14 +69,30 @@ def load_vision_config(
 def transform_tag(cfg: DictConfig) -> str:
     """
     Etichetta del contributo attivo (head/whitening), usata per namespacing di
-    log e visualizzazioni così le combinazioni non si sovrascrivono.
-    Esempi: "raw", "whiten", "whiten768", "head", "head+whiten".
+    log, file per-query e visualizzazioni così le combinazioni non si
+    sovrascrivono.
+    Esempi: "raw", "whiten", "whiten768", "head", "head+whiten-train".
+
+    ⚠️ Dal 25 ago 2026 (fase B.2) il tag porta anche il PROTOCOLLO di stima del
+    whitening: `whitening.fit_split=train` → suffisso `-train`. Il trasduttivo
+    (`fit_split=all`) resta senza suffisso, così i file già a disco — le 320 run
+    partial di `status.md §24`, tutte trasduttive — mantengono il loro nome e le
+    run nuove NON li sovrascrivono. Due protocolli, due nomi: è la condizione
+    per confrontarli in modo appaiato.
     """
     parts = []
     head = cfg.get("head")
     if head is not None and head.get("enabled"):
-        parts.append("head")
+        # B.6 (10 set 2026): il checkpoint della head entra nel tag, cosi' le run
+        # con `head_probe.pt` non sovrascrivono quelle con `head.pt`
+        # (head_probe.pt -> "head-probe"; head.pt -> "head", nomi storici invariati).
+        stem = Path(head.get("file") or "head.pt").stem
+        parts.append("head" if stem == "head" else stem.replace("_", "-"))
     if cfg.whitening.enabled:
         dim = cfg.whitening.get("dim")
-        parts.append(f"whiten{dim}" if dim else "whiten")
+        tag = f"whiten{dim}" if dim else "whiten"
+        fit_split = cfg.whitening.get("fit_split") or "all"
+        if fit_split != "all":
+            tag = f"{tag}-{fit_split}"
+        parts.append(tag)
     return "+".join(parts) or "raw"

@@ -10,15 +10,23 @@
 # (gli STESSI usati dal training in 03), cosi' il checkpoint si ricarica con
 # l'architettura giusta per costruzione.
 #
-# Protocollo (identico al ramo vision): query campionate dallo split test,
+# Protocollo (identico al ramo vision): query campionate dallo split `split`
+# (default valid; il test si legge solo per il numero finale),
 # gallery = intero snapshot, self-match escluso, metriche per-asse (nDCG@K +
 # Recall/mAP@K) contro l'intera gallery.
 
 # --- valutazione ---
 num_queries: 2000            # query campionate (come il benchmark vision: 2000 dal test)
 seed: 42                     # seed del campionamento query (riproducibile)
-split: test                  # train | valid | test | all -- da dove campionare le query
+split: valid                 # train | valid | test | all -- da dove campionare le query.
+                             # Default `valid` (24 ago, A1): il test non sceglie nulla,
+                             # si passa a test solo per il numero finale.
 k_values: [1, 5, 10, 100]    # profondita' K per nDCG/Recall/mAP
+gallery_names: results/shared_gallery.json         # inner join fra i rami (fase B.3, 25 ago 2026):
+                             #   null = gallery intera (67.405 grafi, comportamento storico)
+                             #   path = results/shared_gallery.json da `python -m src.evaluation.gallery_join`
+                             # ⚠️ deve essere lo STESSO file usato dal ramo vision: e' cio' che rende
+                             # identico il gallery_sha1 dei due rami e appaiato il confronto cross-ramo
 
 # --- infra ---
 batch_size: 512              # batch del forward sulla gallery

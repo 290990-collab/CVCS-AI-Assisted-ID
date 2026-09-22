@@ -14,8 +14,8 @@
 # training (se divergessero, il checkpoint non si ricaricherebbe — rilievo B5).
 # L'unica cosa che questo script aggiunge e' la variabile PERQUERY_OUT.
 #
-# ⚠️ Valuta sul TEST (e' cio' che fa 04_eval_gnn.sh, `split` dal config
-#    condiviso): sono le stesse righe gia' pubblicate, non una nuova selezione.
+# ⚠️ Lo split arriva da configs/graph_retrieval.yaml (dal 10 set: `valid`).
+#    Per il TEST del protocollo B usare 07_perquery_graph_test.sh.
 #
 # Uso:
 #   sbatch scripts/evaluation/04_perquery_graph.sh            # baseline + le 3 vincenti + le 3 base
@@ -34,16 +34,21 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=all_usr_prod
 #SBATCH --account=cvcs2026
+# Esclude i nodi Blackwell (sm_120): 04_eval_gnn.sh e' chiamato con `bash`, quindi
+# vale l'header di QUESTO script (stessa whitelist di 05/06).
+#SBATCH --constraint="gpu_RTX5000_16G|gpu_2080_11G|gpu_2080Ti_11G|gpu_P100_16G|gpu_RTX_A5000_24G|gpu_A40_45G|gpu_L40S_45G"
 
 set -uo pipefail
 umask 002
 
 PROJECT_DIR="/work/cvcs2026/ai_interior_design/CVCS-AI-Assisted-ID"
 cd "$PROJECT_DIR" || exit 1
-mkdir -p logs results/perquery/graph_test
+mkdir -p logs
 
 # Letta da scripts/graph/04_eval_gnn.sh e trasformata in `--perquery-out`.
-export PERQUERY_OUT="results/perquery/graph_test"
+# Override via env (10 set 2026): lo split arriva da configs/graph_retrieval.yaml
+# (oggi `valid`), quindi per il full sul valid si usa una cartella dedicata.
+export PERQUERY_OUT="${PERQUERY_OUT:-results/perquery/graph_test}"
 
 # Coppie <target> <variante>. `hist` e' la baseline training-free (nessuna
 # variante). Le altre sono le vincenti misurate piu' la rispettiva `base`: il
@@ -66,6 +71,7 @@ else
   RUNS=("${DEFAULT_RUNS[@]}")
 fi
 
+mkdir -p "$PERQUERY_OUT"
 echo "=== $(date) | PER-QUERY ramo graph | per-query -> $PERQUERY_OUT ==="
 echo "run: ${#RUNS[@]}"
 nvidia-smi
@@ -91,8 +97,7 @@ echo "gallery e stesse query):"
 echo "  python -m src.evaluation.significance \\"
 echo "      --a $PERQUERY_OUT/<gcn_tau02>.npz --b $PERQUERY_OUT/<gcn_base>.npz --k 10"
 echo ""
-echo "Il confronto vision<->graph richiede --allow-gallery-mismatch (67.405 vs"
-echo "67.453) e resta non appaiato in senso stretto finche' non si restringe la"
-echo "gallery all'inner join (fase B.3)."
+echo "Con la gallery condivisa (B.3) il confronto vision<->graph NON richiede"
+echo "--allow-gallery-mismatch: se lo chiede, i rami usano gallery diverse."
 
 [ $FAILED -eq 0 ] || exit 1

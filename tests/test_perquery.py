@@ -32,7 +32,13 @@ from src.evaluation.perquery import (
 )
 from src.evaluation.random_floor import random_ret_rows
 from src.evaluation.relevance import AXES, DISCRETE_AXES, GalleryAxes
-from src.evaluation.significance import check_compatible, compare, paired_values
+from src.evaluation.significance import (
+    check_compatible,
+    compare,
+    compare_self_rr,
+    paired_self_rr,
+    paired_values,
+)
 from src.graph.evaluation.axis_metrics import (
     accumulate_axes as graph_accumulate_axes,
     new_metrics as graph_new_metrics,
@@ -459,6 +465,97 @@ def test_significance_meta_mismatch_raises(tmp_path):
         check_compatible(data_a.meta, data_b.meta, k=10, allow_gallery_mismatch=False)
 
 
+def _write_partial_perquery(path, names, self_rr_values, meta_overrides=None):
+    """File per-query in modalita' partial: come `_write_minimal_perquery` ma con
+    il campo `self_rr` (reciprocal rank del self), che esiste SOLO nel partial.
+    E' l'endpoint del criterio A.5 (status.md § 23)."""
+    q = len(names)
+    axes_list = list(AXES)
+    shape = (len(axes_list), 1, q)
+    meta = {
+        "branch": "test", "run_tag": "sys", "mode": "partial",
+        "partial_label": "random f=0.75",
+        "split": "valid", "exclude_self": False, "query_seed": 0,
+        "gallery": {"n": q, "sha1": gallery_sha1(names), "source": "synthetic"},
+        "axes": axes_list, "k_values": [10],
+    }
+    if meta_overrides:
+        meta.update(meta_overrides)
+    write_npz(path, meta=meta, names=names, qi=list(range(q)),
+              ndcg=np.full(shape, np.nan, dtype=np.float32),
+              recall=np.full(shape, np.nan, dtype=np.float32),
+              map_=np.full(shape, np.nan, dtype=np.float32),
+              num_relevant=np.full((len(axes_list), q), -1, dtype=np.int32),
+              self_rr=np.asarray(self_rr_values, dtype=np.float32))
+
+
+def test_self_rr_paired_delta_matches_hand_computation(tmp_path):
+    """Il delta appaiato su self_rr e' la media delle differenze, e l'appaiamento
+    e' SUI NOMI: B ha le stesse query in ordine diverso e il risultato non cambia."""
+    names_a = ["a", "b", "c", "d"]
+    rr_a = [1.0, 0.5, 0.25, 0.2]
+    names_b = ["d", "c", "b", "a"]          # stesso insieme, ordine invertito
+    rr_b = [0.1, 0.25, 0.5, 0.5]            # cioe' a=0.5, b=0.5, c=0.25, d=0.1
+
+    p1, p2 = tmp_path / "a.npz", tmp_path / "b.npz"
+    _write_partial_perquery(p1, names_a, rr_a)
+    _write_partial_perquery(p2, names_b, rr_b,
+                            meta_overrides={"gallery": {
+                                "n": len(names_a),
+                                "sha1": gallery_sha1(names_a),   # stessa gallery
+                                "source": "synthetic"}})
+
+    data_a, data_b = load_perquery(p1), load_perquery(p2)
+    a, b, names = paired_self_rr(data_a, data_b)
+    assert names == names_a                                  # ordine di A, deterministico
+    np.testing.assert_allclose(b, [0.5, 0.5, 0.25, 0.1], rtol=0, atol=1e-6)
+
+    res = compare_self_rr(data_a, data_b)
+    expected = float(np.mean(np.asarray(rr_a) - np.asarray([0.5, 0.5, 0.25, 0.1])))
+    assert res["n_pairs"] == 4
+    assert res["metric"] == "self_rr"
+    assert res["k"] == "-"                                   # self_rr non ha profondita'
+    np.testing.assert_allclose(res["delta"], expected, rtol=0, atol=1e-9)
+
+
+def test_self_rr_identical_files_give_zero_delta(tmp_path):
+    names = ["a", "b", "c", "d", "e"]
+    rr = [1.0, 0.5, 0.3333, 0.25, 0.2]
+    p1, p2 = tmp_path / "a.npz", tmp_path / "b.npz"
+    _write_partial_perquery(p1, names, rr)
+    _write_partial_perquery(p2, names, rr)
+
+    res = compare_self_rr(load_perquery(p1), load_perquery(p2))
+    assert res["delta"] == 0.0
+    assert res["ci_lo"] <= 0.0 <= res["ci_hi"]
+
+
+def test_self_rr_on_full_file_raises_with_actionable_message(tmp_path):
+    """Un file full non ha self_rr: l'errore deve dirlo, non esplodere su None."""
+    names = ["a", "b", "c"]
+    p1, p2 = tmp_path / "a.npz", tmp_path / "b.npz"
+    _write_minimal_perquery(p1, names, [0.9, 0.5, 0.7])       # mode="full"
+    _write_partial_perquery(p2, names, [1.0, 0.5, 0.25])
+
+    with pytest.raises(ValueError, match="self_rr"):
+        paired_self_rr(load_perquery(p1), load_perquery(p2))
+
+
+def test_self_rr_different_masking_level_is_rejected(tmp_path):
+    """Confrontare f=0.5 con f=0.75 misurerebbe il livello di masking, non la
+    robustezza: `partial_label` e' in STRICT_META_KEYS e deve bloccare."""
+    names = ["a", "b", "c"]
+    rr = [1.0, 0.5, 0.25]
+    p1, p2 = tmp_path / "a.npz", tmp_path / "b.npz"
+    _write_partial_perquery(p1, names, rr)
+    _write_partial_perquery(p2, names, rr,
+                            meta_overrides={"partial_label": "random f=0.5"})
+
+    data_a, data_b = load_perquery(p1), load_perquery(p2)
+    with pytest.raises(ValueError, match="partial_label"):
+        check_compatible(data_a.meta, data_b.meta, k=10, allow_gallery_mismatch=False)
+
+
 def test_significance_gallery_mismatch_requires_explicit_override(tmp_path):
     names_a = ["a", "b", "c"]
     names_b = ["a", "b", "x"]  # una sola query diversa -> sha1 diverso
@@ -486,3 +583,75 @@ def test_significance_pairing_is_and_of_non_nan_in_both_files(tmp_path):
     assert kept == ["a", "d"]
     assert len(a) == 2 and len(b) == 2
     assert not np.isnan(a).any() and not np.isnan(b).any()
+
+
+# ----------------------------------------------------------------------
+# 8. area_removed (11 set 2026, danni crop/patch del vision): campo opzionale.
+# ----------------------------------------------------------------------
+
+def _write_area_perquery(path, names, area_removed):
+    q = len(names)
+    axes_list = list(AXES)
+    shape = (len(axes_list), 1, q)
+    meta = {
+        "branch": "test", "run_tag": "sys", "mode": "partial",
+        "partial_label": "crop f=0.5", "split": "valid", "exclude_self": True,
+        "query_seed": 0, "axes": axes_list, "k_values": [10],
+        "gallery": {"n": q, "sha1": gallery_sha1(names), "source": "synthetic"},
+    }
+    write_npz(path, meta=meta, names=names, qi=list(range(q)),
+              ndcg=np.full(shape, np.nan, dtype=np.float32),
+              recall=np.full(shape, np.nan, dtype=np.float32),
+              map_=np.full(shape, np.nan, dtype=np.float32),
+              num_relevant=np.full((len(axes_list), q), -1, dtype=np.int32),
+              self_rr=np.ones(q, dtype=np.float32), area_removed=area_removed)
+
+
+def test_area_removed_round_trip(tmp_path):
+    p = tmp_path / "a.npz"
+    _write_area_perquery(p, ["a", "b", "c"], [0.25, 0.5, 0.0])
+    data = load_perquery(p)
+    assert data.area_removed.dtype == np.float32
+    np.testing.assert_array_equal(data.area_removed, np.float32([0.25, 0.5, 0.0]))
+    assert data.meta["schema_version"] == SCHEMA_VERSION
+
+
+def test_file_without_area_removed_loads_as_none(tmp_path):
+    p = tmp_path / "a.npz"
+    _write_partial_perquery(p, ["a", "b"], [1.0, 0.5])
+    assert load_perquery(p).area_removed is None
+
+
+def test_area_removed_shape_is_validated(tmp_path):
+    with pytest.raises(ValueError, match="area_removed"):
+        _write_area_perquery(tmp_path / "a.npz", ["a", "b", "c"], [0.25, 0.5])
+
+
+def test_recorder_with_area_removed_requires_it_and_writes_it(tmp_path):
+    metas, names = synthetic_gallery()
+    axes = GalleryAxes(metas)
+    max_k = max(K_VALUES)
+    metrics = vision_new_metrics(K_VALUES)
+    skipped = {ax: 0 for ax in DISCRETE_AXES}
+    recorder = PerQueryRecorder(K_VALUES, max_k, with_self_rr=True, with_area_removed=True)
+    rows = [1, 2, 3]
+    skipped_before = dict(skipped)
+    vision_accumulate_axes(metrics, skipped, axes, 0, rows, K_VALUES, exclude_self=True)
+    with pytest.raises(ValueError, match="area_removed"):
+        recorder.add(name=names[0], qi=0, ret_rows=rows, metrics=metrics,
+                     skipped_before=skipped_before, skipped=skipped, axes=axes,
+                     exclude_self=True, self_rr=1.0)
+    recorder.add(name=names[0], qi=0, ret_rows=rows, metrics=metrics,
+                 skipped_before=skipped_before, skipped=skipped, axes=axes,
+                 exclude_self=True, self_rr=1.0, area_removed=0.4)
+    p = tmp_path / "r.npz"
+    recorder.write(p, meta={"mode": "partial", "partial_label": "crop f=0.5"})
+    np.testing.assert_array_equal(load_perquery(p).area_removed, np.float32([0.4]))
+
+    plain = PerQueryRecorder(K_VALUES, max_k, with_self_rr=True)
+    plain.add(name=names[0], qi=0, ret_rows=rows, metrics=metrics,
+              skipped_before=skipped_before, skipped=skipped, axes=axes,
+              exclude_self=True, self_rr=1.0)
+    q = tmp_path / "q.npz"
+    plain.write(q, meta={"mode": "partial", "partial_label": "random f=0.5"})
+    assert load_perquery(q).area_removed is None

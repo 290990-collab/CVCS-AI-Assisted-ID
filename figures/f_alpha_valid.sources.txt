@@ -1,0 +1,114 @@
+# f_alpha_valid — figura del report
+data:     2026-09-18 16:39
+comando:  python -m src.figures.alpha_valid
+
+numeri della figura:
+  split: valid
+  bande: bootstrap B=10000
+  graph-graph   α*=0.4 AUC 0.5299 | estremi 0.4963 (α=0) / 0.4562 (α=1) | guadagno sul migliore +0.0336 | oracolo 0.5467
+  vision-vision α*=0.5 AUC 0.4902 | estremi 0.3821 (α=0) / 0.3920 (α=1) | guadagno sul migliore +0.0982 | oracolo 0.4540
+  vision-graph  α*=0.6 AUC 0.6301 | estremi 0.4562 (α=0) / 0.3920 (α=1) | guadagno sul migliore +0.1740 | oracolo 0.5557
+
+file letti:
+  results/fusion/select_graphgraph_valid.json
+  results/perquery/fusion_graphgraph_valid/fusion_a0_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.1_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.1_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.1_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.2_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.2_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.2_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.3_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.3_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.3_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.4_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.4_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.4_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.5_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.5_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.5_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.6_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.6_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.6_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.7_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.7_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.7_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.8_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.8_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.8_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.9_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.9_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a0.9_partial-random-f0.75_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a1_partial-random-f0.25_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a1_partial-random-f0.5_valid.npz
+  results/perquery/fusion_graphgraph_valid/fusion_a1_partial-random-f0.75_valid.npz
+  results/fusion/select_visionvision_valid.json
+  results/perquery/fusion_visionvision_valid/fusion_a0_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.1_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.1_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.1_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.2_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.2_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.2_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.3_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.3_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.3_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.4_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.4_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.4_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.5_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.5_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.5_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.6_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.6_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.6_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.7_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.7_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.7_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.8_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.8_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.8_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.9_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.9_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a0.9_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a1_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a1_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_visionvision_valid/fusion_a1_partial-nowalls-random-f0.75_valid.npz
+  results/fusion/select_valid.json
+  results/perquery/fusion_valid/fusion_a0_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a0.1_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0.1_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.1_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a0.2_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0.2_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.2_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a0.3_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0.3_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.3_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a0.4_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0.4_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.4_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a0.5_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0.5_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.5_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a0.6_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0.6_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.6_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a0.7_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0.7_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.7_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a0.8_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0.8_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.8_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a0.9_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a0.9_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.9_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/fusion_valid/fusion_a1_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/fusion_valid/fusion_a1_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a1_partial-nowalls-random-f0.75_valid.npz

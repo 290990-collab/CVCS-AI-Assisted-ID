@@ -49,7 +49,13 @@ mkdir -p logs
 # best_score e' attribuibile a quel pezzo. I flag della variante vengono
 # aggiunti DOPO quelli del YAML: argparse fa vincere l'ultimo della riga.
 # ----------------------------------------------------------------------
-ALL_VARIANTS="base noskip nosym nojitter nd01 noaug tau02 tau05 selmean selgeom"
+ALL_VARIANTS="base noskip nosym nojitter nd01 noaug tau02 tau05 selmean selgeom tau02asym asym asymlost asymrep asymrob asymlostrob asymrobrep"
+
+# Selezione sulla ROBUSTEZZA (15 set 2026): epoca con AUC self-recovery massima
+# (tetto 300, niente early stop). La regola storica gira in ombra con
+# patience/epochs di configs/graph_models/gat.yaml (10/150, status.md §45) e salva
+# in embeddings/graph/<encoder>/<variante>_selfull/ (valutabile con 04).
+ROB="--selection-probe partial --epochs 300 --patience 0 --shadow-patience 10 --shadow-epochs 150"
 
 variant_flags() {
   case "$1" in
@@ -68,6 +74,18 @@ variant_flags() {
     # --- temperatura InfoNCE (8,17% di falsi negativi sulla composizione) ---
     tau02)    echo "--temperature 0.2" ;;                                       # valore precedente
     tau05)    echo "--temperature 0.5" ;;                                       # esplorazione verso l'alto
+
+    # --- opzione D (10 set 2026, status.md § 30): coppie asimmetriche su tau02 ---
+    # UNA variabile rispetto a tau02: la forma delle coppie (intero <-> stanze rimosse).
+    tau02asym) echo "--temperature 0.2 --pair-mode asym_partial" ;;
+    asym)      echo "--pair-mode asym_partial" ;;                               # D sul YAML di riferimento (sage, gat)
+    # --- 14 set 2026: marcatore "vicini persi" su asym (cambia in_dim: 04 passa lo stesso flag) ---
+    asymlost)  echo "--pair-mode asym_partial --lost-marker" ;;
+    # replica di `asym` per misurare il rumore fra training (init non seedata, status.md §41)
+    asymrep)   echo "--pair-mode asym_partial" ;;
+    # --- 15 set 2026: stesse coppie, checkpoint scelto sulla robustezza (+ shadow _selfull) ---
+    asymrob|asymrobrep) echo "--pair-mode asym_partial $ROB" ;;
+    asymlostrob)        echo "--pair-mode asym_partial --lost-marker $ROB" ;;
 
     # --- criterio di selezione del checkpoint ---
     # NB: i YAML hanno gia' `select_criterion: topology`, quindi `base` E' la

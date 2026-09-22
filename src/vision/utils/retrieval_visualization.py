@@ -9,8 +9,13 @@ from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
 from src.data.rplan_metadata import ROOM_TYPES, load_metadata
-from src.vision.data.vision_partial_query import make_partial_query
-from src.vision.evaluation.evaluate import build_gallery_axes, partial_runs
+from src.vision.data.vision_damage import damaged_query, make_patch_context, resolve_patch_size
+from src.vision.evaluation.evaluate import (
+    _transform_image_size,
+    build_gallery_axes,
+    partial_runs,
+    whitening_fit_rows,
+)
 from src.evaluation.metrics import average_precision_at_k, ndcg_at_k, recall_at_k
 from src.evaluation.relevance import AXES, DISCRETE_AXES
 from src.vision.models.projection_head import load_head
@@ -373,6 +378,11 @@ def _metrics_summary(sims, results, qi, axes, stem2row, exclude_self) -> str:
     k = len(results)
     ret_rows = [stem2row[Path(r["path"]).stem]
                 for r in results if Path(r["path"]).stem in stem2row]
+    if exclude_self:
+        # B.4 (25 ago): il self esce anche dai RISULTATI, non solo dai rilevanti.
+        # Tenerlo fra i recuperati mentre lo si toglie dai rilevanti lo farebbe
+        # contare come un errore, e la riga stampata direbbe il falso.
+        ret_rows = [r for r in ret_rows if r != qi]
     not_self = np.ones(len(axes), dtype=bool)
     if exclude_self:
         not_self[qi] = False
@@ -442,9 +452,14 @@ def _run_full_viz(pipeline, axes, stem2row, queries, args) -> None:
         tqdm.write(f"[Viz] {out_path}")
 
 
-def _run_partial_viz(pipeline, axes, stem2row, queries, pcfg, args) -> None:
+def _run_partial_viz(pipeline, axes, stem2row, queries, pcfg, args, patch_ctx=None) -> None:
     """Query = pianta degradata. Mostra l'input mascherato, marca la pianta
-    originale ritrovata (★, self-recovery) e la rilevanza per-asse vs completa."""
+    originale ritrovata (★, self-recovery) e la rilevanza per-asse vs completa.
+
+    Il danno passa da `vision_damage.damaged_query`, la stessa funzione della
+    valutazione: stanze, nowalls, crop e patch, e il pannello mostra l'immagine
+    effettivamente codificata (per la patch e' la tela ridimensionata).
+    `patch_ctx` serve solo alle run `patch` (lo costruisce `main`)."""
     seed = int(pcfg.get("seed", 42))
     open_boundary = bool(pcfg.get("open_boundary", True))
     runs = partial_runs(pcfg)
@@ -462,10 +477,11 @@ def _run_partial_viz(pipeline, axes, stem2row, queries, pcfg, args) -> None:
                 continue
 
             rng = random.Random(seed + qi)
-            img, removed = make_partial_query(qp, meta, strat, params, rng, open_boundary)
+            tensor, dinfo, img = damaged_query(qp, meta, strat, params, rng, open_boundary,
+                                               pipeline.transform, patch_ctx, return_image=True)
 
             # NON si esclude il self: ritrovare l'originale è il successo cercato.
-            results = pipeline.query(pipeline.transform(img), top_k=args.top_k)[:args.top_k]
+            results = pipeline.query(tensor, top_k=args.top_k)[:args.top_k]
 
             rank = None
             for j, r in enumerate(results, start=1):
@@ -474,12 +490,21 @@ def _run_partial_viz(pipeline, axes, stem2row, queries, pcfg, args) -> None:
                     rank = rank or j
 
             sims = _decorate_with_axes(results, qi, axes, stem2row)
-            metrics_line = _metrics_summary(sims, results, qi, axes, stem2row, exclude_self=False)
+            # B.4: la riga per-asse usa la stessa convenzione delle tabelle (self
+            # escluso), altrimenti figura e tabella del report si contraddicono.
+            # La ★ sull'originale ritrovato resta: viene dalla griglia, non da qui.
+            metrics_line = _metrics_summary(sims, results, qi, axes, stem2row, exclude_self=True)
             sr = f"self-rec rank={rank}" if rank else "self-rec: miss"
-            summary_line = f"{label}  |  {sr}  |  {metrics_line}"
+            area = f"area tolta {dinfo['area_removed']:.2f}"
+            summary_line = f"{label}  |  {area}  |  {sr}  |  {metrics_line}"
 
-            removed_types = ", ".join(ROOM_TYPES[meta.room_types[k]] for k in removed) or "nessuna"
-            query_label = ["QUERY (partial)", f"-{len(removed)}: {removed_types}", Path(qp).stem]
+            removed = dinfo.get("removed")
+            if removed is not None:        # stanze / nowalls: quali stanze sono sparite
+                removed_types = ", ".join(ROOM_TYPES[meta.room_types[k]] for k in removed) or "nessuna"
+                what = f"-{len(removed)}: {removed_types}"
+            else:                          # crop / patch: non tolgono stanze intere
+                what = f"{strat}: {area}"
+            query_label = ["QUERY (partial)", what, Path(qp).stem]
 
             out_path = f"{args.out_dir}/{safe}/query_{i:02d}_{query_path.stem}.png"
             visualize_query(
@@ -514,12 +539,14 @@ def main():
     hcfg = getattr(config, "head", None)
     if hcfg is not None and hcfg.get("enabled"):
         head = load_head(save_dir, pipeline.raw_embeddings.shape[1],
-                         hcfg.hidden_dim, hcfg.out_dim, manager.device)
+                         hcfg.hidden_dim, hcfg.out_dim, manager.device,
+                         filename=hcfg.get("file") or "head.pt")
     pipeline.prepare_index(
         head=head,
         whiten=config.whitening.enabled,
         eps=config.whitening.eps,
         whiten_dim=config.whitening.get("dim"),
+        fit_rows=whitening_fit_rows(config, pipeline.image_paths),
     )
 
     # feature di rilevanza per-asse sull'intera gallery (stessa infrastruttura di
@@ -545,7 +572,15 @@ def main():
                     f"{transform_tag(config)}_{mode}")
 
     if partial_on:
-        _run_partial_viz(pipeline, axes, stem2row, queries, pcfg, args)
+        patch_ctx = None
+        if any(strat == "patch" for _, strat, _ in partial_runs(pcfg)):
+            # Stessa risoluzione di evaluate.main: un preset sbagliato fallisce qui.
+            patch_size = resolve_patch_size(
+                pipeline.encoder, config.model.kwargs.get("patch_size"),
+                _transform_image_size(pipeline.transform),
+            )
+            patch_ctx = make_patch_context(pipeline.transform, patch_size)
+        _run_partial_viz(pipeline, axes, stem2row, queries, pcfg, args, patch_ctx)
     else:
         _run_full_viz(pipeline, axes, stem2row, queries, args)
 

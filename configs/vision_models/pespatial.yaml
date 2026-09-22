@@ -13,6 +13,7 @@ image_size: 224          # allineata al resto della griglia. A differenza di pec
                          # risoluzione NON e' bloccata: timm ricampiona il pos_embed
                          # (1025 -> 197 token). 512 e' la nativa del checkpoint e vale
                          # come variante di sweep. Vincolo: multipli di 16.
+patch_size: 16           # lato della patch ViT: SOLO per il danno `patch` (timm vit_pe_spatial_base_patch16_512); evaluate lo confronta col modello caricato
 pooling: natural         # natural(token CLS) | mean | gem sui patch token — 768d in tutti e tre
 gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
 extraction_layer: -1     # layer da cui leggere i token: -1 ultimo, -2 penultimo, ...

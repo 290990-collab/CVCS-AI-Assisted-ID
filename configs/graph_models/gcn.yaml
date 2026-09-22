@@ -49,6 +49,12 @@ feat_mask: 0.1               # prob. per CELLA (nodo, colonna) -- non piu' per c
 geom_jitter: 0.1             # dev.std del rumore sulle 6 colonne geometriche (unita' z-score)
 flip_prob: 0.5               # riflessione della pianta
 rot_prob: 0.5                # rotazione di 90/180/270 gradi
+pair_mode: symmetric         # forma delle coppie (opzione D, 10 set 2026, status.md § 30):
+                             #   symmetric    = due viste con le augmentation sopra (storico)
+                             #   asym_partial = intero (solo flip/rot) <-> stanze rimosse
+                             #                  f~U[0.25, 0.75]; node/edge drop, feat_mask e
+                             #                  jitter NON applicati. Stringa, non booleano:
+                             #                  il ponte YAML->flag salta i booleani generici.
 
 # --- ottimizzazione ---
 lr: 1.0e-3

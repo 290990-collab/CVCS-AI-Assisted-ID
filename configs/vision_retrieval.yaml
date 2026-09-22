@@ -18,6 +18,10 @@ retrieval:
 whitening:
   enabled: true                                                     # centering + decorrelazione + scaling a varianza unitaria + L2-normalization
   eps: 1.0e-6
+  fit_split: train                                                  # su quali righe si STIMA il whitening (fase B.2, 25 ago 2026):
+                                                                    #   train = solo le piante dello split train (vincolo DURO 1: statistiche dal solo train)
+                                                                    #   all   = trasduttivo, stima su tutta la gallery (protocollo delle run <= 24 ago; usalo solo come confronto)
+                                                                    # ⚠️ la gallery indicizzata resta INTERA in entrambi i casi: cambia l'insieme di stima, non il corpus
   dim: null                                                         # null = tieni tutte le D; int = riduzione PCA alle top-D componenti (es. 768)
                                                                     # dim--> per RIDUZIONE DI DIMENSIONE ("null" mantiene larghezza nativa di ogni encoder)
 
@@ -27,6 +31,8 @@ head:
   enabled: false
   hidden_dim: 1024
   out_dim: 256
+  file: head.pt                                                     # checkpoint in save_dir: head.pt = selezione su val-loss (storico);
+                                                                    # head_probe.pt = selezione sulla probe partial (fase B.6). Entra nel tag di run.
 
 # Training della head (self-supervised A+): positivi = pianta degradata (+ flip/rot90).
 training:
@@ -37,26 +43,41 @@ training:
   temperature: 0.07                                                 # τ InfoNCE (iperparametro da ablare)
   views_per_plan: 3                                                 # V viste positive per pianta (iperparametro)
   mask_fraction: [0.1, 0.5]                                         # frazione di stanze rimosse per vista (range)
+  damage: random                                                    # render delle viste positive E della probe: random (storico, i muri interni restano) | nowalls_random (muri tolti, status.md §46)
   augment: true                                                     # A+: flip/rot90 oltre al masking
   open_boundary: true                                               # incompletezza visibile (no muri di sigillatura)
   split_pool: [train, valid]                                        # coppie generate su train+valid; il training separa train (fit) da valid (early stop)
-  patience: 8                                                       # epoche senza miglioramento della val-loss prima dello stop (0 = disattivo)
+  patience: 8                                                       # epoche senza miglioramento del criterio di selezione prima dello stop (0 = disattivo)
   seed: 42
+  selection: val_loss                                               # criterio di scelta dell'epoca: val_loss (storico, rilievo A3) | probe_partial (fase B.6)
+  probe:                                                            # solo con selection=probe_partial (10 set 2026)
+    num_queries: 1000                                               # query VALID, DISGIUNTE dalle eval.num_queries campionate con eval.seed
+    seed: 1042                                                      # campionamento delle query della probe (il masking usa seed + riga)
+    fractions: [0.25, 0.5, 0.75]                                    # le frazioni dell'AUC del criterio A.5 (status.md § 23)
 
 # Logging opzionale su Weights & Biases (solo training head). enabled=false = nessuna dipendenza.
 wandb:
-  enabled: true
+  enabled: false
   project: cvcs-head
-  mode: online                                                      # online | offline
+  mode: offline                                                      # online | offline
 
 eval:
   num_queries: 2000
   seed: 42
-  split: null                                                       # null = intera gallery come query pool; valid|test = solo quello split
+  split: valid                                                      # valid|test = query ristrette a quello split; null = intera gallery.
+                                                                    # Default `valid` (24 ago, rilievo A1): il test non sceglie nulla.
+  gallery_names: results/shared_gallery.json                                            # inner join fra i rami (fase B.3, 25 ago 2026):
+                                                                    #   null = gallery intera (67.453 righe, comportamento storico)
+                                                                    #   path = results/shared_gallery.json prodotto da `python -m src.evaluation.gallery_join`
+                                                                    # ⚠️ restringe E riordina la gallery sull'ordine canonico: e' quello che rende
+                                                                    # identico il gallery_sha1 dei due rami, quindi APPAIATO il confronto cross-ramo
   k_values: [1, 5, 10, 100]                                         # profondità per nDCG/Recall/mAP
   perquery_dir: null                                                # null = salva solo le medie a schermo (comportamento di default);
                                                                     # path = scrive anche <dir>/vision_<encoder_variante_contributo>_<modalità>_<split>.npz
                                                                     # con il valore di OGNI query (per confronti appaiati e significatività)
+  query_vectors_dir: null                                           # late fusion (16 Sep 2026, status.md §49): null = nothing (default);
+                                                                    # path = partial runs also write <dir>/<same name as the per-query file>.npz (contract qvec/1:
+                                                                    # RAW damaged-query vectors + removed rooms + whitening params). Requires perquery_dir.
 
 # Partial Layout Retrieval: query degradata, gallery
 # invariata. Se enabled, evaluate.py usa questa modalità al posto della full.
@@ -68,3 +89,15 @@ partial:
     random:   { enabled: true, fractions: [0.0, 0.25, 0.5, 0.75] }  # curva masking-level
     semantic: { enabled: true, keep_types: [0, 2, 3] }              # tieni Living/Kitchen/Bathroom
     topology: { enabled: true, max_degree: 1 }                      # togli le stanze foglia
+    # Danni non a stanze (src/vision/data/vision_damage.py), spenti di default: accesi si
+    # accodano DOPO topology (file per-query partial-crop-f*/partial-patch-f*). f = frazione
+    # di pixel-pianta rimossa (area misurata), niente f=0.0 (e' la query intatta del random).
+    crop:  { enabled: false, fractions: [0.25, 0.5, 0.75], tolerance: 0.05, max_tries: 10000 }  # un rettangolo sullo snapshot nativo
+    patch: { enabled: false, fractions: [0.25, 0.5, 0.75], tolerance: 0.05 }                    # patch ViT intere (P da model.kwargs.patch_size)
+    # Stessa selezione di stanze delle tre strategie storiche, ma il rendering cancella
+    # anche i muri della stanza tolta (grigio di QUALSIASI tonalita', non solo il perimetro):
+    # la query perde tipo + muri, resta la forma del buco. Appaiate per costruzione con le
+    # omonime storiche (stesso rng, stesse stanze). File per-query partial-nowalls-*.
+    nowalls_random:   { enabled: false, fractions: [0.25, 0.5, 0.75] }
+    nowalls_semantic: { enabled: false, keep_types: [0, 2, 3] }
+    nowalls_topology: { enabled: false, max_degree: 1 }

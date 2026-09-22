@@ -222,3 +222,29 @@ def get_split(
     """
     meta = load_metadata(png_path, mat_dir)
     return meta.split if meta is not None else None
+
+
+def split_row_indices(
+    paths: list[str | Path],
+    split: str,
+    mat_dir: str | Path = DEFAULT_MAT_DIR,
+) -> list[int]:
+    """
+    Indici delle righe di `paths` che appartengono allo split RPLAN `split`.
+
+    Serve a stimare statistiche (es. il whitening) sul solo train senza toccare
+    la gallery: le righe indicizzate restano TUTTE, cambia solo l'insieme su cui
+    si stima. Le piante senza record .mat non appartengono a nessuno split e
+    vengono escluse.
+
+    Args:
+        paths:   path dei PNG nell'ordine delle righe (image_paths della gallery).
+        split:   "train" | "valid" | "test".
+        mat_dir: cartella dei .mat (default: dataset RPLAN condiviso).
+
+    Returns:
+        Lista crescente di indici di riga.
+    """
+    if split not in _SPLITS:
+        raise ValueError(f"split {split!r} non valido (usa {_SPLITS})")
+    return [i for i, p in enumerate(paths) if get_split(p, mat_dir) == split]

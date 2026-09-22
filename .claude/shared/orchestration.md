@@ -73,7 +73,10 @@ numeri): lì delegare costa più che fare.
    per-asse, e *perché* — mai solo "è salito".
 5. **Conclusione**: ipotesi **confermata o smentita**, scritta come tale in
    `.claude/shared/status.md`. Qui le smentite (val-loss ≠ retrieval, τ=0.3, "allenare di più")
-   hanno insegnato più delle conferme.
+   hanno insegnato più delle conferme — e valgono **dove sono state misurate**:
+   sul graph; la head vision era sotto-allenata (`status.md §30.3-§30.5`).
+   ⚠️ **In chiusura** (dal 10 set) il ciclo parte solo per voci di
+   `roadmap.md §2`: un'ipotesi nuova va in future work, non in un protocollo.
 
 ⚠️ I due cicli si intrecciano: spesso si cambia il codice **per** misurare
 qualcosa. In quel caso l'`architect` produce un piano con entrambe le sezioni, e

@@ -95,15 +95,21 @@ PY
 # ricarica per costruzione, quindi una forma diversa = errore di caricamento.
 # Le varianti di temperatura, augmentation e criterio di selezione hanno
 # cambiato il TRAINING, non la rete: per loro basta `--variant` (che namespacia
-# la cartella del checkpoint). L'unica eccezione e' `noskip`, che toglie la
-# concatenazione dell'add-pool grezzo e quindi restringe `proj`.
+# la cartella del checkpoint). Le eccezioni sono due: `noskip`, che toglie la
+# concatenazione dell'add-pool grezzo e quindi restringe `proj`, e `asymlost`
+# (con `asymlostrob` e la sua ombra `_selfull`), che aggiunge la colonna "vicini
+# persi" e quindi porta in_dim da 19 a 20. Le varianti `*rob` (15 set 2026) e le
+# loro `*_selfull` (checkpoint della regola storica, stesso training) cambiano
+# solo la SELEZIONE dell'epoca, non la rete.
 # ----------------------------------------------------------------------
-KNOWN_VARIANTS="base noskip nosym nojitter nd01 noaug tau02 tau05 selmean selgeom"
+KNOWN_VARIANTS="base noskip nosym nojitter nd01 noaug tau02 tau05 selmean selgeom tau02asym asym asymlost asymrep asymrob asymrob_selfull asymlostrob asymlostrob_selfull asymrobrep asymrobrep_selfull"
 
 variant_eval_flags() {
   case "$1" in
     noskip)                                                    echo "--no-raw-skip" ;;
-    base|nosym|nojitter|nd01|noaug|tau02|tau05|selmean|selgeom) echo "" ;;
+    asymlost|asymlostrob|asymlostrob_selfull)                  echo "--lost-marker" ;;
+    base|nosym|nojitter|nd01|noaug|tau02|tau05|selmean|selgeom|tau02asym|asym|asymrep) echo "" ;;
+    asymrob|asymrob_selfull|asymrobrep|asymrobrep_selfull)     echo "" ;;
     *)                                                         echo "__INVALID__" ;;
   esac
 }
@@ -152,7 +158,7 @@ print("true" if cfg.get("baseline_hist") else "false")
 PY
 }
 
-EVAL_FLAGS=$(eval_flags_from_yaml "$RETRIEVAL_CFG" "num_queries,seed,split,k_values,batch_size")
+EVAL_FLAGS=$(eval_flags_from_yaml "$RETRIEVAL_CFG" "num_queries,seed,split,k_values,batch_size,gallery_names")
 
 # Persistenza dei valori per-query (fase A.3), opt-in via variabile d'ambiente:
 # senza PERQUERY_OUT la riga di comando resta IDENTICA a prima, quindi questo
@@ -161,6 +167,13 @@ EVAL_FLAGS=$(eval_flags_from_yaml "$RETRIEVAL_CFG" "num_queries,seed,split,k_val
 # solo posto invece di essere copiato una terza volta.
 PERQUERY_FLAGS=""
 [ -n "${PERQUERY_OUT:-}" ] && PERQUERY_FLAGS="--perquery-out $PERQUERY_OUT"
+# Partial sul grafo (fase C.0), opt-in via env come PERQUERY_OUT: senza, la
+# riga di comando resta identica. La usa scripts/evaluation/06_perquery_graph_partial_valid.sh.
+[ -n "${GRAPH_PARTIAL_FLAGS:-}" ] && PERQUERY_FLAGS="$PERQUERY_FLAGS $GRAPH_PARTIAL_FLAGS"
+# Override opt-in dei flag di valutazione (11 set 2026), appesi DOPO quelli del
+# YAML: argparse fa vincere l'ultimo. Lo usa scripts/evaluation/07_perquery_graph_test.sh
+# per `--split test` senza toccare configs/graph_retrieval.yaml. Senza, nulla cambia.
+[ -n "${GRAPH_EXTRA_FLAGS:-}" ] && PERQUERY_FLAGS="$PERQUERY_FLAGS $GRAPH_EXTRA_FLAGS"
 
 TARGET="$1"
 VARIANT_ARG="$2"

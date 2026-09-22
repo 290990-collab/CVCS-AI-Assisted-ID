@@ -14,14 +14,18 @@
 # Esiste perche' sul login node `ulimit -t` = 600 s di CPU e queste run ne
 # consumano ~540: un `Killed` muto, non un bug. Vedi status.md § 6.
 #
-# Uso:
-#   sbatch scripts/evaluation/01_random_floor.sh          # tutte e quattro le run
-#   sbatch scripts/evaluation/01_random_floor.sh vision   # solo le due della gallery vision
-#   sbatch scripts/evaluation/01_random_floor.sh graph    # solo le due della gallery graph
+# Uso:  sbatch 01_random_floor.sh [all|vision|graph] [test|valid]
+#   sbatch scripts/evaluation/01_random_floor.sh              # 4 run sul TEST
+#   sbatch scripts/evaluation/01_random_floor.sh all valid    # 4 run sul VALID
+#   sbatch scripts/evaluation/01_random_floor.sh vision       # solo gallery vision, test
+# Lo split va scelto uguale a quello delle query che il floor deve normalizzare:
+# le selezioni del progetto si fanno sul valid, quindi serve il floor del valid
+# (fino al 13 ago si usava quello del test come proxy — status.md § 11, § 18.4).
 #
-# Output (oltre al log del job):
-#   results/random_floor/<null>_<ramo>_test.npz   per-query del primo seed
-#   results/random_floor/<null>_<ramo>_test.txt   la tabella asse x k, leggibile
+# Output (oltre al log del job): due file che NON contengono la stessa cosa, e il
+# nome lo dice — confonderli e' costato la rettifica di status.md § 18.4.
+#   results/random_floor/<null>_<ramo>_<split>_seed0.npz   per-query, UN SOLO seed
+#   results/random_floor/<null>_<ramo>_<split>_mean5.txt   tabella, MEDIA sui 5 seed
 
 #SBATCH --job-name="gp_01_random_floor"
 #SBATCH --output=logs/%x_%j.log
@@ -44,10 +48,17 @@ mkdir -p logs results/random_floor
 
 OUT_DIR="results/random_floor"
 WHICH="${1:-all}"
+SPLIT="${2:-test}"
+
+if [[ "$SPLIT" != "test" && "$SPLIT" != "valid" ]]; then
+  echo "[01_random_floor] ERRORE: split '$SPLIT' non riconosciuto (attesi: test | valid)" >&2
+  exit 1
+fi
 
 # Le query e i seed sono gli stessi del protocollo di valutazione: 2000 query
-# del test split campionate con seed 42, cinque seed di ranking.
-BASE=(--split test --num-queries 2000 --query-seed 42 --ranking-seeds 0 1 2 3 4)
+# dello split scelto, campionate con seed 42, cinque seed di ranking. Cambiare
+# questi valori scollega il floor dalle run che deve normalizzare.
+BASE=(--split "$SPLIT" --num-queries 2000 --query-seed 42 --ranking-seeds 0 1 2 3 4)
 
 VISION_GALLERY="embeddings/vision/dinov3/gem/image_paths.json"   # 67.453 righe
 GRAPH_GALLERY="embeddings/graph/gcn/tau02/names.json"            # 67.405 righe
@@ -57,8 +68,11 @@ FAILED=0
 # run_floor <tag> <gallery> [flag extra...]
 run_floor() {
   local tag="$1" gallery="$2"; shift 2
-  local npz="$OUT_DIR/${tag}.npz"
-  local txt="$OUT_DIR/${tag}.txt"
+  # Due suffissi diversi perche' il contenuto e' diverso: il .npz e' il per-query
+  # del PRIMO ranking-seed (random_floor.py:432), il .txt e' la tabella mediata
+  # sui 5. Sul null costante differiscono di ~1 mc_std (status.md § 18.4).
+  local npz="$OUT_DIR/${tag}_seed0.npz"
+  local txt="$OUT_DIR/${tag}_mean5.txt"
 
   if [[ ! -f "$gallery" ]]; then
     echo "[01_random_floor] ERRORE: gallery mancante: $gallery" >&2
@@ -67,7 +81,7 @@ run_floor() {
   fi
 
   echo "=============================================================="
-  echo "[01_random_floor] $tag — gallery $gallery"
+  echo "[01_random_floor] $tag — split $SPLIT — gallery $gallery"
   echo "=============================================================="
   # tee: la tabella resta anche fuori dal log del job, accanto al .npz.
   python -m src.evaluation.random_floor \
@@ -82,13 +96,13 @@ run_floor() {
 }
 
 if [[ "$WHICH" == "all" || "$WHICH" == "vision" ]]; then
-  run_floor "random_vision_test"   "$VISION_GALLERY"
-  run_floor "constant_vision_test" "$VISION_GALLERY" --constant-ranking
+  run_floor "random_vision_${SPLIT}"   "$VISION_GALLERY"
+  run_floor "constant_vision_${SPLIT}" "$VISION_GALLERY" --constant-ranking
 fi
 
 if [[ "$WHICH" == "all" || "$WHICH" == "graph" ]]; then
-  run_floor "random_graph_test"   "$GRAPH_GALLERY"
-  run_floor "constant_graph_test" "$GRAPH_GALLERY" --constant-ranking
+  run_floor "random_graph_${SPLIT}"   "$GRAPH_GALLERY"
+  run_floor "constant_graph_${SPLIT}" "$GRAPH_GALLERY" --constant-ranking
 fi
 
 if [[ "$WHICH" != "all" && "$WHICH" != "vision" && "$WHICH" != "graph" ]]; then

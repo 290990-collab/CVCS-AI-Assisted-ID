@@ -15,6 +15,53 @@ di una run da 3 ore.
 - Un test valido qui: **CPU**, pochi campioni, seed fisso, nessun download di
   pesi, nessuna scrittura in `embeddings/` reali (usare una directory
   temporanea).
+- **Suite di regressione rapida** (10 set: **96 passed**, ~27 s), l'unica che
+  gira senza GPU né dataset intero:
+
+  ```bash
+  python -m pytest tests/test_perquery.py tests/test_metric_diagnostics.py \
+                   tests/test_loader.py tests/test_contracts.py \
+                   tests/test_robustness_auc.py tests/test_head_probe.py \
+                   tests/test_graph_asym_pairs.py tests/test_graph_lost_marker.py -q
+  ```
+
+  `test_graph_lost_marker.py` (14 set, 18 test): marcatore «vicini persi» di `asymlost` — conteggio a
+  mano, fedeltà training↔valutazione, zero sulla pianta intera, default a 19 colonne, guardie, forma
+  del checkpoint (19 vs 20).
+
+  `test_head_damage.py` (15 set, 11 test): `training.damage` della head — `random` identico al render
+  storico e alla chiave di cache già su disco, `nowalls_random` toglie le stesse stanze con l'rng allineato,
+  probe che registra il danno, training che rifiuta coppie/probe/config discordi. Suite completa senza
+  `test_vision_retrieval.py`/`test_vision_encoder.py`: **196 passed** (15 set).
+
+  `test_query_vectors.py` + `test_late_fusion.py` (16 set): contratto `qvec/1`, default bit-identici delle
+  due valutazioni, α=1/α=0 ≡ rami, rifiuti duri (stanze, sha1, whitening non train), regole di `select`
+  di §49, controllo C3 «stesso job», determinismo. Suite completa senza `test_vision_retrieval.py`:
+  **260 passed** (16 set, `python -m pytest`).
+  `test_fusion_graphgraph.py` (17 set, §50): β=1/β=0 ≡ i due graph, rifiuti (stanze, sha1, stessa run, cartelle miste), C5 solo limite basso, `complementarity` (join per nome, tre esiti, componente migliore, determinismo). Suite completa: **276 passed** (17 set).
+  `test_figures.py` (18 set, §54, 19 test): figure del report — curva appaiata sulle sole query comuni, AUC
+  che esclude f=0.0, guardia «il json di `fusion_select` e i per-query devono dire lo stesso numero»,
+  provenienza salvata accanto a ogni figura, larghezze a due colonne, classifica del teaser ricostruita
+  reinserendo la query al proprio rango, regola di scelta della query, appaiamento fra danni diversi,
+  guardia «due sistemi devono contare le stesse classi», raggruppamento delle ablation per encoder.
+  Suite completa: **316 passed** (18 set).
+  `test_fusion_visionvision.py` (17 set, §51): γ=1/γ=0 ≡ i due vision col proprio whitening, rifiuti (stanze, sha1, fit_split, head, stessa run, cartelle miste), C5 solo basso, regola a quattro esiti (confine ±0.04), Spearman, G_C letto dal json di §50. Suite completa: **297 passed** (17 set).
+
+  Gli ultimi tre (10 set) coprono l'AUC di A.5 (`robustness_auc`), la probe
+  partial della head (B.6) e le coppie asimmetriche del graph (`pair_mode`,
+  default bit-identico allo storico).
+
+  `tests/test_contracts.py` (25 ago, **fase B.5**, 18 test) copre i **quattro
+  contratti critici**: riga↔nome su entrambi i rami · forma dell'architettura↔
+  checkpoint (`raw_skip`, `pooling="mean_max"`) · valori di riferimento di
+  nDCG/Recall/AP calcolati a mano · split disgiunti e statistiche che dipendono
+  **solo** dalle righe passate. ⚠️ Non copre che il *chiamante* del whitening
+  passi le sole righe di train: quello è B.2.
+
+  ⚠️ `test_vision_encoder.py` **non** è incluso: scarica i pesi dei backbone.
+  I 4 test più recenti (24 ago) coprono `self_rr`: presenza del campo solo in
+  `mode="partial"`, delta appaiato verificato **a mano** su valori noti, e
+  rifiuto esplicito quando un file non è partial.
 
 ## Cosa si testa (in ordine di valore)
 

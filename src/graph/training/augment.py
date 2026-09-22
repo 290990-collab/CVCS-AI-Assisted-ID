@@ -44,6 +44,21 @@ numero di nodi e il vettore `batch`** (i nodi "tolti" vengono azzerati e isolati
 non rimossi). Cosi' entrambe le viste producono esattamente gli stessi B grafi
 nello stesso ordine -> le righe di InfoNCE restano allineate. Con pooling `add`
 (default) un nodo azzerato e isolato contribuisce 0, quindi equivale a rimuoverlo.
+
+Coppie ASIMMETRICHE (`pair_mode="asym_partial"`, fase C.0 → opzione D, 10 set 2026)
+-----------------------------------------------------------------------------------
+Con il self-recovery sotto masking il graph crollava (status.md § 30): le coppie
+simmetriche non insegnano mai che "pianta con meta' delle stanze" e "pianta
+intera" sono lo stesso oggetto. In questo modo la coppia diventa quella della
+head del vision: vista A = grafo **intero** (solo rotazioni e riflessioni), vista
+B = lo stesso grafo con una frazione f ~ U[`partial_frac_min`, `partial_frac_max`]
+di stanze **rimosse davvero** (sottografo indotto, archi rinumerati), come fa il
+partial in valutazione (`graph_partial_query.make_partial_graph`: stesso
+`round(f*n)`, feature dei superstiti identiche). Almeno una stanza resta sempre,
+cosi' ogni grafo del batch sopravvive e le righe di InfoNCE restano allineate.
+node_drop/edge_drop/feat_mask/geom_jitter NON si applicano in questa modalita':
+la sola variabile che cambia e' la forma delle coppie. Default `symmetric` =
+comportamento storico, bit per bit.
 """
 
 from __future__ import annotations
@@ -52,8 +67,10 @@ from dataclasses import dataclass
 
 import torch
 from torch_geometric.data import Data
+from torch_geometric.utils import subgraph
 
 from src.data.rplan_metadata import NUM_ROOM_TYPES
+from src.graph.transforms import LOST_MARKER_COL, lost_neighbor_count
 
 # Le 6 colonne geometriche [cx, cy, w, h, area, aspect] seguono l'one-hot del tipo
 # (coerente con graph_builder._node_features e transforms._GEOM_START).
@@ -85,6 +102,10 @@ class AugmentParams:
     geom_jitter: float = 0.0
     flip_prob: float = 0.0
     rot_prob: float = 0.0
+    pair_mode: str = "symmetric"        # symmetric | asym_partial (opzione D)
+    partial_frac_min: float = 0.25
+    partial_frac_max: float = 0.75
+    lost_marker: bool = False           # colonna "vicini persi" nella vista B (asymlost)
 
     @classmethod
     def from_cfg(cls, cfg) -> "AugmentParams":
@@ -96,6 +117,10 @@ class AugmentParams:
             geom_jitter=getattr(cfg, "geom_jitter", 0.0),
             flip_prob=getattr(cfg, "flip_prob", 0.0),
             rot_prob=getattr(cfg, "rot_prob", 0.0),
+            pair_mode=getattr(cfg, "pair_mode", "symmetric"),
+            partial_frac_min=getattr(cfg, "partial_frac_min", 0.25),
+            partial_frac_max=getattr(cfg, "partial_frac_max", 0.75),
+            lost_marker=getattr(cfg, "lost_marker", False),
         )
 
     @property
@@ -261,16 +286,98 @@ def augment_view(
     return view
 
 
+def keep_subgraph(batch, keep: torch.Tensor, lost_marker: bool = False) -> Data:
+    """Sottografo indotto dai nodi `keep` [N] bool: nodi tolti DAVVERO, archi fra
+    superstiti rinumerati, `batch` filtrato. Le feature dei superstiti non cambiano.
+
+    Con `lost_marker=True` (variante asymlost) la colonna LOST_MARKER_COL, che la
+    transform ha riempito di zeri, riceve il numero di vicini distinti tolti,
+    contato sul grafo INTERO prima del sottografo: stesso valore di
+    `graph_partial_query.lost_marker_for` in valutazione.
+    """
+    if lost_marker:
+        if batch.x.size(1) != LOST_MARKER_COL + 1:
+            raise ValueError(
+                f"keep_subgraph(lost_marker=True): x ha {batch.x.size(1)} colonne, "
+                f"attese {LOST_MARKER_COL + 1} (manca AppendLostMarker nella transform?)"
+            )
+        count = lost_neighbor_count(batch.edge_index, keep)
+    edge_attr = getattr(batch, "edge_attr", None)
+    edge_index, edge_attr = subgraph(keep, batch.edge_index, edge_attr,
+                                     relabel_nodes=True, num_nodes=batch.x.size(0))
+    if lost_marker:
+        x = batch.x[keep].clone()
+        x[:, LOST_MARKER_COL] = count[keep].to(x.dtype)
+        view = Data(x=x, edge_index=edge_index)
+    else:
+        view = Data(x=batch.x[keep], edge_index=edge_index)
+    if edge_attr is not None:
+        view.edge_attr = edge_attr
+    node_graph = getattr(batch, "batch", None)
+    if node_graph is None:
+        node_graph = batch.x.new_zeros(batch.x.size(0), dtype=torch.long)
+    view.batch = node_graph[keep]
+    return view
+
+
+def remove_rooms_view(batch, params: AugmentParams, generator: torch.Generator) -> Data:
+    """Vista PARZIALE: per ogni grafo toglie round(f*n) stanze a caso, con
+    f ~ U[partial_frac_min, partial_frac_max] estratta per grafo.
+
+    Come `select_rooms_to_remove` (strategia `random`) del partial in valutazione:
+    stesso arrotondamento (`torch.round` = `round` di Python, half-to-even). In
+    piu' si lascia sempre almeno una stanza: un grafo vuoto sparirebbe dal pooling
+    e disallineerebbe le righe di InfoNCE.
+    """
+    device = batch.x.device
+    node_graph = getattr(batch, "batch", None)
+    if node_graph is None:
+        node_graph = batch.x.new_zeros(batch.x.size(0), dtype=torch.long)
+    num_graphs = int(node_graph.max()) + 1
+    counts = torch.bincount(node_graph, minlength=num_graphs)
+
+    frac = params.partial_frac_min + (params.partial_frac_max - params.partial_frac_min) \
+        * _rand(num_graphs, generator, device)
+    n_remove = torch.round(frac * counts.float()).long()
+    n_remove = torch.minimum(n_remove, counts - 1).clamp_min(0)
+
+    # Rango casuale di ogni nodo DENTRO il suo grafo: si ordina per (grafo, u).
+    u = _rand(node_graph.numel(), generator, device)
+    order = torch.argsort(node_graph.double() * 2.0 + u.double())
+    ptr = torch.cumsum(counts, 0) - counts                       # primo nodo di ogni grafo
+    rank = torch.empty_like(node_graph)
+    rank[order] = torch.arange(node_graph.numel(), device=device) - ptr[node_graph[order]]
+    keep = rank >= n_remove[node_graph]
+    # Il marcatore non estrae numeri casuali: a parita' di seed tolte le stesse
+    # stanze della variante `asym`.
+    return keep_subgraph(batch, keep, lost_marker=params.lost_marker)
+
+
 def two_views(
     batch,
     params: AugmentParams,
     generator: torch.Generator,
     geom_stats: tuple[torch.Tensor, torch.Tensor] | None = None,
 ) -> tuple[Data, Data]:
-    """Due viste aumentate indipendenti dello stesso batch (coppia positiva).
+    """Due viste aumentate dello stesso batch (coppia positiva).
+
+    - `symmetric` (default): due viste indipendenti con le stesse augmentation.
+    - `asym_partial` (opzione D): vista A = grafo intero con le sole simmetrie
+      (flip/rot), vista B = grafo con una frazione di stanze rimosse.
 
     Input/Output: vedi `augment_view`; ritorna la coppia (vista_a, vista_b).
     """
+    if params.lost_marker and params.pair_mode != "asym_partial":
+        raise ValueError(
+            f"lost_marker=True richiede pair_mode='asym_partial' (dato: '{params.pair_mode}')"
+        )
+    if params.pair_mode == "asym_partial":
+        whole = AugmentParams(node_drop=0.0, edge_drop=0.0, feat_mask=0.0, geom_jitter=0.0,
+                              flip_prob=params.flip_prob, rot_prob=params.rot_prob)
+        return (augment_view(batch, whole, generator, geom_stats),
+                remove_rooms_view(batch, params, generator))
+    if params.pair_mode != "symmetric":
+        raise ValueError(f"pair_mode='{params.pair_mode}' (attesi: symmetric | asym_partial)")
     return (
         augment_view(batch, params, generator, geom_stats),
         augment_view(batch, params, generator, geom_stats),

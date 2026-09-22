@@ -5,6 +5,25 @@
 indipendenti in parallelo (validità scientifica · coerenza codice/config/doc) →
 riconciliazione. Ogni rilievo è ancorato a `file:riga` letta in sessione.
 
+> 📌 **Documento STORICO (30 lug).** Le righe `file:riga` e il «Quadro» sotto
+> descrivono il codice di allora. Stato dei 13 rilievi al **10 set 2026** (A3 al 15 set):
+>
+> | Rilievo | Esito | Dove |
+> |---|---|---|
+> | A1 selezione sul test | ✅ chiuso (griglia sul valid; test letto 3 volte, dichiarato) | `status.md §13-§14.1` |
+> | A2 whitening trasduttivo | ✅ chiuso: train-only ≈ trasduttivo, non era leakage | §25, §31.1 |
+> | A3 head su val-loss | ⛔ superato (15 set): il limite era il budget di epoche (§30); poi la head è risultata specifica del danno di training (anche rifatta col render corretto) e la config vision è frozen, `pespatial/gem/whiten` | §30, §37, §44, §48 |
+> | A4 nessuna incertezza | ✅ chiuso (per-query + bootstrap appaiato + `robustness_auc`) | `perquery.py`, `significance.py`, §29 |
+> | A5 circolarità | ⚠️ confermato **pieno**, anche il vision legge `rType`: si dichiara | §21.1-§21.2 |
+> | A6 geometria a pesi fissi | ⚠️ dichiarato: il claim aggregato non regge, si riporta la sensibilità | §22 |
+> | A7 contratti senza test | ✅ chiuso (`tests/test_contracts.py`, fase B.5) | `testing-guide.md` |
+> | B1 YAML ≠ variante vincente | ⚠️ aperto, **da dichiarare** (variante = YAML + flag di `03`) | `roadmap.md §3` |
+> | B2 gallery diverse | ✅ chiuso (gallery condivisa) | §27, §29 |
+> | B3 partial col self | ✅ chiuso (self fuori dal per-asse) | §26, §31.2 |
+> | B4 ponte booleani | ⚠️ aperto, latente: oggi tutti i booleani sono mappati | `roadmap.md §3` |
+> | B5 errore `raw_skip` | ⚠️ aperto, igiene | `roadmap.md §3` |
+> | B6 costruzione grafi | ❌ falso allarme | §21.3 |
+
 > ⚠️ **Assunzione dichiarata.** Gli "obiettivi aggiuntivi" annunciati non sono
 > ancora stati forniti: questo audit misura la codebase contro gli obiettivi
 > **documentati** (`CLAUDE.md`, `README.md`, `PAPER.md`) e contro i vincoli DURI
@@ -119,6 +138,19 @@ si allinea il graph. La cosa che non si può fare è tenere il vincolo così com
 
 ### A3 — La head del vision è selezionata con il criterio che il progetto ha smentito
 
+> ⛔ **SUPERATO il 15 set** (`status.md §37-§44`): il box qui sotto valeva col masking a
+> stanze storico, che lasciava i muri interni. Sui danni che tolgono davvero informazione la
+> head perde contro il frozen; config vision = `pespatial/gem/whiten`.
+
+> ✅ **CONFERMATO, e dal 24 ago è il rilievo con il ritorno più alto**
+> (`status.md §24`). Con il criterio A.5 («migliore» = più robusto) la head
+> **non è più un dettaglio**: è la configurazione congelata del ramo vision
+> (`dinov3/natural/head`, AUC 0.8157) e vale **+0.284** a encoder fisso. Vince
+> **nonostante** sia selezionata sulla val-loss InfoNCE ⇒ quel numero è un
+> **limite inferiore** e B.6 può solo alzarlo. ⚠️ La probe di riallenamento deve
+> essere **partial**, non full: altrimenti si riseleziona col criterio sbagliato
+> per il task sbagliato.
+
 **Fatto.** Il checkpoint della projection head è scelto per **val-loss InfoNCE
 minima** con early stopping
 ([src/vision/training/train_projection.py:95-116](src/vision/training/train_projection.py#L95-L116),
@@ -180,6 +212,15 @@ le run.
 
 ### A5 — La circolarità è più estesa di quanto il progetto dichiari
 
+> ✅ **CONFERMATO E RAFFORZATO (24 ago, `status.md §21.1-21.2`).** Il
+> ridimensionamento del 30 lug era sbagliato: `gtBox[-1] ==`
+> `unione(gtBoxNew)[[1,0,3,2]] - [0,0,1,1]` al **100%** su 24.218 piante →
+> anche `footprint_area`/`footprint_aspect` sono funzioni delle node feature.
+> «Di grado, non di natura» era giusto. **E la domanda aperta qui sotto ha
+> risposta: SÌ**, il colore delle PNG codifica `rType` — funzione
+> deterministica ma non iniettiva, 13 tipi → **6 colori**. La circolarità
+> tocca quindi anche il ramo vision, a risoluzione più grossa.
+
 **Fatto.** La ground truth geometrica è funzione di `footprint` (`rec.gtBox`),
 `boxes` (`rec.gtBoxNew`) e `room_types` (`rec.rType`) —
 [src/evaluation/relevance.py:137-146](src/evaluation/relevance.py#L137-L146) e
@@ -216,6 +257,13 @@ sulla geometria.
 ---
 
 ### A6 — L'asse che porta il claim è una formula fatta a mano, mai validata
+
+> ✅ **CONFERMATO E ORA CONSEQUENZIALE (24 ago, `status.md §22`).** Non è più un
+> rilievo teorico: rifacendo il gain con 6 pesature, **2 su 6 invertono** il
+> vincitore vision/graph con CI 95% che esclude lo zero, e l'inversione (−0.033)
+> è **più grande** del vantaggio di baseline (+0.002). Il claim di punta del
+> progetto era una proprietà dei pesi `(1,1,1)`, non dei modelli. Sopravvive il
+> claim **decomposto** sulla forma del footprint (+0.019÷+0.027).
 
 **Fatto.** La geometria è la media aritmetica di tre componenti con costanti
 scelte a mano ([relevance.py:137-146](src/evaluation/relevance.py#L137-L146)):
@@ -372,6 +420,14 @@ Scenario concreto: chi cambia `raw_skip: false` in un YAML vede morire tutte le
 valutazioni sui checkpoint già allenati.
 
 ### B6 — Costruzione dei grafi: due silenziosità
+
+> ❌ **FALSO ALLARME (24 ago, `status.md §21.3`), su entrambe.** (a) **0** id
+> di relazione fuori da [0,9] su 822.048 archi → il `clamp` è codice morto.
+> (b) **0** `edge_attr` non one-hot su 1.369.101 archi: non esiste **nessuna**
+> coppia (i,j) ripetuta nel dataset, quindi `reduce="mean"` non può fondere
+> relazioni diverse. La diagnosi «GAT è il più capace ed è il peggiore» resta
+> senza spiegazioni alternative. ⚠️ Vera però l'incoerenza documentale: `2E`
+> cade nello 0,5% dei grafi, ma per **397 self-loop**, non per archi paralleli.
 
 **Fatto (riprodotto su tensori sintetici).**
 (a) [graph_builder.py:128-130](src/graph/graph_builder.py#L128-L130) fa

@@ -26,10 +26,15 @@ Formato del file `.npz` (contratto stabile, versionato da SCHEMA_VERSION):
     ret_rows     int32 [Q,max_k] righe recuperate in ordine di rank, -1 = padding
     n_ret        int16 [Q]       quante righe valide ci sono in ret_rows
     self_rr      f32 [Q]         reciprocal rank del self (solo mode="partial")
+    area_removed f32 [Q]         frazione dei pixel-pianta rimossa dal danno
+                                 (opzionale, solo partial vision dall'11 set 2026)
 
 Chiavi del `meta`: schema_version, branch, run_tag, mode ("full"|"partial"),
 partial_label, split, exclude_self, num_queries, query_seed, k_values, axes,
 geometry_weights, gallery{n, sha1, source}, max_k, timestamp, argv.
+Chiave opzionale (additiva, 11 set 2026): damage{strategy, params, patch_size,
+image_size, area_space: "native"|"resized", n_fallback} nel partial vision.
+I file senza `area_removed`/`damage` restano validi: stesso SCHEMA_VERSION.
 
 Regola NaN: una query saltata su un asse resta nell'array (allineata a `names`)
 con NaN e `num_relevant = 0`. Di conseguenza `np.nanmean` sulle matrici salvate
@@ -102,6 +107,7 @@ class PerQueryData:
     ret_rows: np.ndarray | None = None
     n_ret: np.ndarray | None = None
     self_rr: np.ndarray | None = None
+    area_removed: np.ndarray | None = None
 
     def axis_index(self, name: str) -> int:
         """Indice della riga di `name` nelle matrici [A,K,Q] (da meta["axes"])."""
@@ -125,7 +131,8 @@ def load_perquery(path) -> PerQueryData:
         path: percorso del .npz.
 
     Returns:
-        `PerQueryData`; `ret_rows`/`n_ret`/`self_rr` sono None se assenti dal file.
+        `PerQueryData`; `ret_rows`/`n_ret`/`self_rr`/`area_removed` sono None
+        se assenti dal file.
     """
     path = Path(path)
     with np.load(path, allow_pickle=False) as z:
@@ -137,7 +144,7 @@ def load_perquery(path) -> PerQueryData:
             )
         optional = {
             key: (z[key] if key in z.files else None)
-            for key in ("ret_rows", "n_ret", "self_rr")
+            for key in ("ret_rows", "n_ret", "self_rr", "area_removed")
         }
         return PerQueryData(
             meta=meta,
@@ -156,7 +163,7 @@ def load_perquery(path) -> PerQueryData:
 # ----------------------------------------------------------------------
 
 def write_npz(path, *, meta: dict, names, qi, ndcg, recall, map_, num_relevant,
-              ret_rows=None, n_ret=None, self_rr=None) -> None:
+              ret_rows=None, n_ret=None, self_rr=None, area_removed=None) -> None:
     """Scrive il file per-query, validando forme e dtype del contratto.
 
     Args:
@@ -172,6 +179,7 @@ def write_npz(path, *, meta: dict, names, qi, ndcg, recall, map_, num_relevant,
         ret_rows:     [Q,max_k] int, -1 = padding (opzionale).
         n_ret:        [Q] int (opzionale).
         self_rr:      [Q] float, solo per mode="partial" (opzionale).
+        area_removed: [Q] float, frazione di pianta rimossa (opzionale).
 
     Side effects: crea/sovrascrive `path`.
     """
@@ -219,6 +227,9 @@ def write_npz(path, *, meta: dict, names, qi, ndcg, recall, map_, num_relevant,
     if self_rr is not None:
         arrays["self_rr"] = np.asarray(self_rr, dtype=np.float32)
         expected["self_rr"] = (n_query,)
+    if area_removed is not None:
+        arrays["area_removed"] = np.asarray(area_removed, dtype=np.float32)
+        expected["area_removed"] = (n_query,)
 
     for key, shape in expected.items():
         if arrays[key].shape != shape:
@@ -269,12 +280,16 @@ class PerQueryRecorder:
         max_k:    larghezza di `ret_rows` (padding a -1 sotto questa soglia).
         with_self_rr: True nel partial, dove ogni query ha il reciprocal rank
                   del self da salvare.
+        with_area_removed: True nel partial vision, dove ogni query ha la
+                  frazione di pianta rimossa dal danno.
     """
 
-    def __init__(self, k_values, max_k: int, with_self_rr: bool = False):
+    def __init__(self, k_values, max_k: int, with_self_rr: bool = False,
+                 with_area_removed: bool = False):
         self.k_values = tuple(k_values)
         self.max_k = int(max_k)
         self.with_self_rr = with_self_rr
+        self.with_area_removed = with_area_removed
         self._names: list[str] = []
         self._qi: list[int] = []
         self._ndcg: list[np.ndarray] = []      # ognuno [A,K]
@@ -284,9 +299,11 @@ class PerQueryRecorder:
         self._ret_rows: list[np.ndarray] = []       # ognuno [max_k]
         self._n_ret: list[int] = []
         self._self_rr: list[float] = []
+        self._area_removed: list[float] = []
 
     def add(self, *, name, qi, ret_rows, metrics, skipped_before, skipped,
-            axes, exclude_self: bool, self_rr: float | None = None) -> None:
+            axes, exclude_self: bool, self_rr: float | None = None,
+            area_removed: float | None = None) -> None:
         """Registra la query appena accumulata.
 
         Args:
@@ -300,9 +317,12 @@ class PerQueryRecorder:
             axes:           `GalleryAxes` (serve solo a contare i rilevanti).
             exclude_self:   come nell'accumulo.
             self_rr:        reciprocal rank del self, richiesto se with_self_rr.
+            area_removed:   frazione di pianta rimossa, richiesta se with_area_removed.
         """
         if self.with_self_rr and self_rr is None:
             raise ValueError("self_rr richiesto: il recorder è in modalità partial")
+        if self.with_area_removed and area_removed is None:
+            raise ValueError("area_removed richiesto: il recorder registra l'area rimossa")
 
         n_axes, n_k = len(AXES), len(self.k_values)
         ndcg = np.full((n_axes, n_k), np.nan, dtype=np.float32)
@@ -341,6 +361,8 @@ class PerQueryRecorder:
         self._n_ret.append(len(rows))
         if self.with_self_rr:
             self._self_rr.append(float(self_rr))
+        if self.with_area_removed:
+            self._area_removed.append(float(area_removed))
 
     def __len__(self) -> int:
         return len(self._names)
@@ -376,6 +398,8 @@ class PerQueryRecorder:
             n_ret=np.asarray(self._n_ret, dtype=np.int16),
             self_rr=(np.asarray(self._self_rr, dtype=np.float32)
                      if self.with_self_rr else None),
+            area_removed=(np.asarray(self._area_removed, dtype=np.float32)
+                          if self.with_area_removed else None),
         )
 
 

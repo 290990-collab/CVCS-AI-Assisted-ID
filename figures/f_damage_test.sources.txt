@@ -1,0 +1,30 @@
+# f_damage_test — figura del report
+data:     2026-09-18 16:37
+comando:  python -m src.figures.damage_test
+
+numeri della figura:
+  query appaiate: 2000
+  split: test
+  frazioni: 0.0, 0.25, 0.5, 0.75 (AUC su 0.25, 0.5, 0.75)
+  baseline AUC 0.0013 | f=0.0: 0.0259 [0.0207, 0.0316]  f=0.25: 0.0026 [0.0017, 0.0037]  f=0.5: 0.0011 [0.0006, 0.0018]  f=0.75: 0.0003 [0.0001, 0.0004]
+  vision   AUC 0.3965 | f=0.0: 0.9701 [0.9643, 0.9757]  f=0.25: 0.8216 [0.8069, 0.8363]  f=0.5: 0.3037 [0.2851, 0.3226]  f=0.75: 0.0642 [0.0549, 0.0739]
+  graph    AUC 0.4700 | f=0.0: 0.9768 [0.9718, 0.9815]  f=0.25: 0.8620 [0.8496, 0.8745]  f=0.5: 0.4471 [0.4297, 0.4651]  f=0.75: 0.1008 [0.0910, 0.1110]
+  fusion   AUC 0.6424 | f=0.0: 0.9789 [0.9741, 0.9834]  f=0.25: 0.9580 [0.9513, 0.9645]  f=0.5: 0.7363 [0.7198, 0.7527]  f=0.75: 0.2331 [0.2172, 0.2489]
+
+file letti:
+  results/perquery/graph_test_B/graph_hist-baseline_base_partial-random-f0.0_test.npz
+  results/perquery/graph_test_B/graph_hist-baseline_base_partial-random-f0.25_test.npz
+  results/perquery/graph_test_B/graph_hist-baseline_base_partial-random-f0.5_test.npz
+  results/perquery/graph_test_B/graph_hist-baseline_base_partial-random-f0.75_test.npz
+  results/perquery/fusion_test/fusion_a1_partial-nowalls-random-f0.0_test.npz
+  results/perquery/fusion_test/fusion_a1_partial-nowalls-random-f0.25_test.npz
+  results/perquery/fusion_test/fusion_a1_partial-nowalls-random-f0.5_test.npz
+  results/perquery/fusion_test/fusion_a1_partial-nowalls-random-f0.75_test.npz
+  results/perquery/fusion_test/fusion_a0_partial-nowalls-random-f0.0_test.npz
+  results/perquery/fusion_test/fusion_a0_partial-nowalls-random-f0.25_test.npz
+  results/perquery/fusion_test/fusion_a0_partial-nowalls-random-f0.5_test.npz
+  results/perquery/fusion_test/fusion_a0_partial-nowalls-random-f0.75_test.npz
+  results/perquery/fusion_test/fusion_a0.6_partial-nowalls-random-f0.0_test.npz
+  results/perquery/fusion_test/fusion_a0.6_partial-nowalls-random-f0.25_test.npz
+  results/perquery/fusion_test/fusion_a0.6_partial-nowalls-random-f0.5_test.npz
+  results/perquery/fusion_test/fusion_a0.6_partial-nowalls-random-f0.75_test.npz

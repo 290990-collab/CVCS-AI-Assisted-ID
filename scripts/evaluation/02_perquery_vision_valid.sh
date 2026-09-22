@@ -48,6 +48,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=all_usr_prod
 #SBATCH --account=cvcs2026
+# Esclude i nodi Blackwell (sm_120): stessa whitelist di 05 (11 set 2026).
+#SBATCH --constraint="gpu_RTX5000_16G|gpu_2080_11G|gpu_2080Ti_11G|gpu_P100_16G|gpu_RTX_A5000_24G|gpu_A40_45G|gpu_L40S_45G"
 
 set -uo pipefail
 umask 002
@@ -62,7 +64,14 @@ GROUP="${2:-all}"
 # Risoluzione: vuota = tutte quelle previste per il modello (una sola per i
 # cinque encoder storici). RES=448 ne restringe una, per parallelizzare i job.
 RES_ARG="${RES:-}"
-PERQUERY_DIR="results/perquery/vision_valid"
+# Override via env (11 set 2026), come in 05: PERQUERY_DIR separa il protocollo B
+# (gallery condivisa, whiten-train) dai file storici di vision_valid, che hanno lo
+# stesso nome per raw/head e verrebbero sovrascritti. EXTRA = override dotlist
+# (es. "head.file=head_probe_conv.pt"), POOLS = pooling (vuoto = tutti).
+PERQUERY_DIR="${PERQUERY_DIR:-results/perquery/vision_valid}"
+EXTRA="${EXTRA:-}"
+POOLS="${POOLS:-}"
+mkdir -p "$PERQUERY_DIR"
 
 case "$GROUP" in
   all|frozen|head) ;;
@@ -87,13 +96,13 @@ run_eval() {
 }
 
 for MODEL in $(select_models "$MODEL_ARG"); do
-  for POOL in $(poolings_for "$MODEL"); do
+  for POOL in ${POOLS:-$(poolings_for "$MODEL")}; do
     for RES in $(select_resolutions "$MODEL" "$RES_ARG"); do
       VAR=$(variant_for "$POOL" "$RES")
       LBL=$(label_for "$MODEL" "$POOL" "$RES")
       # Stesse chiavi di scripts/vision/04 e 05, cambiano solo split e per-query.
       COMMON="model.name=$MODEL model.variant=$VAR model.kwargs.pooling=$POOL $(res_flags "$RES")"
-      COMMON="$COMMON partial.enabled=false eval.split=valid eval.perquery_dir=$PERQUERY_DIR"
+      COMMON="$COMMON partial.enabled=false eval.split=valid eval.perquery_dir=$PERQUERY_DIR $EXTRA"
 
       if [ "$GROUP" = "all" ] || [ "$GROUP" = "frozen" ]; then
         run_eval "$LBL/raw"    $COMMON head.enabled=false whitening.enabled=false

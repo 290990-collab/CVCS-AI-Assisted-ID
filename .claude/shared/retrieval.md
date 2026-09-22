@@ -61,7 +61,7 @@ fatto come una **precisione**, e in un batch InfoNCE da 256 circa **21 dei 255
 "negativi" sono in realtà massimamente rilevanti**. Sulla topologia la classe
 mediana è 16 e i falsi negativi sono 0,7 per batch.
 
-**Raffinamenti previsti:** GED (stile SSIG) come alternativa/affianco al Jaccard
+**Raffinamenti — future work** (tagliati in chiusura, `roadmap.md §3`): GED (stile SSIG) come alternativa/affianco al Jaccard
 topologico; sensitivity analysis su K; metriche diagnostiche sui top-K
 (room-count MAE, adjacency preservation) per spiegare *perché* un encoder vince.
 
@@ -70,7 +70,15 @@ topologico; sensitivity analysis su K; metriche diagnostiche sui top-K
 `python -m src.evaluation.random_floor`, due null: **casuale** (ranking a caso) e
 **costante** (le stesse piante a tutte le query, dice se la metrica
 *discrimina*). Numeri completi in `status.md §10`, script
-`scripts/evaluation/01_random_floor.sh`.
+`scripts/evaluation/01_random_floor.sh [all|vision|graph] [test|valid]`.
+
+⚠️ **Convenzione (decisa 24 ago, `status.md §20`)**: lo **spazio utile**
+`(score − floor)/(1 − floor)` si calcola **sempre** col floor **casuale** della
+propria gallery (`mc_std` 0.0007). Il **costante** non va mai al denominatore —
+le sue 10 piante fisse sono sorteggiate, non scelte, e un seed sposta le
+percentuali di ±8 punti: si riporta come media ± `mc_std` sui 5 seed, e serve
+solo a dire se un asse discrimina. I due artefatti su disco sono distinti dal
+nome: `..._seed0.npz` (un seed) vs `..._mean5.txt` (media dei 5).
 
 **nDCG@10 del ranking casuale: comp 0.739 · topo 0.466 · geom 0.869.** Da qui tre
 regole di lettura, che valgono per ogni tabella del progetto:
@@ -90,11 +98,15 @@ regole di lettura, che valgono per ogni tabella del progetto:
 misurato e riportato per ramo, non è un numero universale. Misurato: le due
 gallery (67.453 e 67.405) danno lo stesso floor entro 0.0011.
 
-## Partial retrieval (vision — implementato)
+## Partial retrieval (entrambi i rami)
 
 Query = pianta **degradata** (stanze rimosse) contro la gallery completa
 invariata. Riusa tutta la pipeline: cambia solo *cosa* si passa a
-`pipeline.query()`.
+`pipeline.query()`. Il ramo graph (C.0, `src/graph/graph_partial_query.py`)
+**importa** la stessa `select_rooms_to_remove`: a parità di pianta e seed i due
+rami tolgono le stesse stanze (appaiamento solo con la gallery condivisa).
+⚠️ Sul graph il self-recovery **crolla** già a f=0.25 (`status.md §30`): un grafo
+parziale è il grafo completo plausibile di altre piante.
 
 - **Costruzione**: mascheramento sullo **snapshot** (stesso dominio della
   gallery): affine per-immagine griglia-256→px, poi flood-fill della regione a
@@ -103,16 +115,49 @@ invariata. Riusa tutta la pipeline: cambia solo *cosa* si passa a
 - **Bordo aperto** (`open_boundary: true`): oltre a sbiancare l'interno si
   **cancellano i muri** che bordavano la stanza rimossa, così l'incompletezza è
   **visibile** e non si crea un appartamento completo più piccolo. Mai muri
-  nuovi. Verificato: il residuo di muri delle stanze rimosse è 0,5-2,4% a piena
-  risoluzione (≈1,2% a 224px, l'input reale dell'encoder) → masking onesto, la
-  sagoma del footprint completo non trapela.
+  nuovi. ~~Verificato: il residuo di muri delle stanze rimosse è 0,5-2,4% → la
+  sagoma non trapela~~ — **falso**.
+  ⚠️ **Bug scoperto l'11 set (`status.md §35`)**: la soglia `_WALL_MAX=120`
+  cancella solo i muri esterni (79); gli interni (128) restano → la stanza tolta
+  resta come **cella bianca contornata**: si perde il tipo, non la forma. Il
+  partial del vision misura «stanze **svuotate**», non «stanze tolte».
+- **`nowalls_*`** (11 set, `status.md §36`, `vision_damage.py`): la risposta al
+  bug, **non** una correzione sul posto. Stessa selezione e stesso flood-fill
+  delle tre storiche, ma il muro è «grigio neutro non-sfondo» → cancella 79 e
+  128. Celle chiuse **50% → 5%**. Appaiata per costruzione con l'omonima storica
+  (rng per query), slug distinti, **spenta di default**. Le storiche restano
+  bit-identiche (21 golden hash in `tests/test_vision_damage.py`).
+  ⚠️ Resta un buco bianco riconoscibile: toglie tipo + muri, **non** la forma.
 - **3 strategie** configurabili separatamente: `random` (frazione di stanze,
   sweep `fractions` → **curva masking-level**), `semantic` (tieni `keep_types`),
-  `topology` (togli stanze foglia, `max_degree`).
+  `topology` (togli stanze foglia, `max_degree`). Ognuna ha il gemello
+  `nowalls_<strategia>`.
 - **Ground truth doppia**: (1) **self-recovery** = rank / Recall@K / MRR della
-  pianta sorgente; (2) **per-asse** rispetto alla pianta **completa**. In partial
-  il self **non** si esclude (la query degradata ≠ immagine originale →
-  ritrovarla è un successo legittimo).
+  pianta sorgente; (2) **per-asse** rispetto alla pianta **completa**.
+- ✅ **B.4 fatta il 25 ago**: le due viste partono dalle **stesse** risposte FAISS
+  ma usano due liste diverse (`partial_rows`, `evaluate.py`). Nella (1) il self
+  **resta** — ritrovare l'originale è il compito. Nella (2) il self **esce** da
+  risultati, rilevanti e IDCG, esattamente come nel full → le due curve sono
+  **confrontabili**. Chiude il rilievo **B3**.
+- ⚠️ I `.npz` partial scritti **prima** del 25 ago hanno `exclude_self=False` nel
+  meta: le loro metriche per-asse sono gonfiate dal self e non vanno mischiate
+  con le nuove. `check_compatible` rifiuta il confronto da solo. Il `self_rr` di
+  quei file, invece, **resta valido**: non passa dalle metriche per-asse.
+- ⚠️ **Metro dal 14 set** (`status.md §38`): l'AUC descritta sotto si calcola su tre danni
+  — `nowalls-random`, `crop`, `patch` — e se ne fa la media per query
+  (`robustness_auc --robust`). Il `random` storico non entra più (muri rimasti, §35-§37).
+  Le visualizzazioni (`retrieval_visualization.py`) disegnano tutti i danni via
+  `damaged_query` (§39).
+- **Endpoint del criterio A.5** (`status.md §23`): `self_rr`, il reciprocal rank
+  del self, salvato **per query** nel `.npz` del partial (`perquery.py:219-221`).
+  Si confronta con `significance.py --metric self_rr`, **allo stesso livello di
+  masking** (confrontare due frazioni diverse è bloccato da `check_compatible`:
+  misurerebbe il masking, non il modello). Ha forma `[Q]` — senza asse e senza
+  K — quindi è gestito fuori da `METRICS`.
+  Misura di sintesi: **AUC su f ∈ {0.25, 0.5, 0.75}**, calcolata e confrontata
+  da `src/evaluation/robustness_auc.py` (`rank` / `compare`); `f=0.0` è
+  **escluso** perché lì tutti gli encoder fanno MRR 0.970, tetto dei **dati**
+  (duplicati esatti in RPLAN) e non dei modelli.
 - Interruttori a due livelli: master `partial.enabled` (override CLI
   `--partial`) e per-strategia `strategies.<nome>.enabled`.
 
@@ -133,6 +178,11 @@ lista di SOTA:
 obbligata (nessun checkpoint ViT-B ufficiale → ViT-H): il divario va
 **dichiarato nel report**. Le varianti di taglia non si confrontano.
 
+Dal 13 ago gli encoder sono **8** (obiettivo O2): + TIPSv2, PE-Core, PE-Spatial
+(tabella in `structure.md`), misurati sul full (`status.md §18-§19`) e sul
+partial (§24, dove `pespatial` è il miglior frozen). Nessuno dei tre ha
+`pairs.npz`/head: nel confronto con la head compaiono solo frozen.
+
 ## Ablation (Fase 1 — frozen, training-free)
 
 Tutti gli assi sono **config-driven** e si variano **uno alla volta** con
@@ -143,7 +193,7 @@ vanno impostati esplicitamente.
 | Asse | Knob | Note per-modello |
 |---|---|---|
 | Pooling | `model.kwargs.pooling` = natural\|mean\|gem (+`gem_p`) | CLS↔mean↔gem pieno solo su DINOv2/v3; gli altri naturale-vs-gem |
-| PCA whitening | `whitening.enabled`, `whitening.dim` | `dim` = top-D componenti; neutralizza anche la differenza di larghezza nativa (I-JEPA 1280 vs 768) |
+| PCA whitening | `whitening.enabled`, `whitening.dim`, `whitening.fit_split` | `dim` = top-D componenti; neutralizza anche la differenza di larghezza nativa (I-JEPA 1280 vs 768). `fit_split` (25 ago, B.2) = su quali righe si **stima**: `train` (default) o `all` (trasduttivo, le run ≤ 24 ago). Cambia il tag: `whiten` → `whiten-train` |
 | Risoluzione | `model.kwargs.image_size` (multiplo del patch) | **SigLIP2**: legata al checkpoint → si cambia `hf_name` (-224/-256/-384) |
 | Extraction layer | `model.kwargs.extraction_layer` (-1, -2, …) | solo DINOv2/v3/I-JEPA (`output_hidden_states`); non applicabile a SigLIP2 (testa di pooling solo sull'ultimo layer) né RADIO (l'API espone solo l'output finale) |
 
@@ -158,22 +208,16 @@ python -m src.vision.evaluation.evaluate model.variant=gem eval.split=test parti
 Head = MLP `Linear→GELU→Linear` + L2-norm allenata **sopra l'encoder frozen**
 con **InfoNCE self-supervised**: il positivo è la stessa pianta **degradata**
 (masking) più augmentation valide (flip/rot90) → **nessuna circolarità** con le
-label di valutazione. Training su vettori cachati, early stopping sul valid.
-Risultati e conclusioni: `.claude/shared/status.md`.
+label di valutazione. Training su vettori cachati, solo righe `train`.
+Selezione dell'epoca: `training.selection` = `val_loss` (storico, `head.pt`) o
+`probe_partial` (B.6: AUC di una probe partial sul valid, query disgiunte da
+quelle di eval). ⚠️ B.6 ha mostrato che il limite era il **budget di epoche**,
+non il criterio (`status.md §30.3-§30.5`). Risultati: `status.md`.
+⚠️ **15 set**: la head non si trasferisce a crop/patch (§37) e col metro a tre danni è 17ª
+su 53 (§44) → config vision frozen. Head **nuova** su `pespatial/gem` fatta e **non adottata** (§46-§48: perde su crop e patch): da zero
+(stessa architettura, pesi e coppie nuovi). Il danno si sceglie con **`training.damage`**
+(`random` storico | `nowalls_random`), uno solo per coppie **e** probe: entra nella chiave della
+cache delle viste solo se ≠ `random`, si salva in `pairs.npz` e in `meta.strategy` della probe, e
+`train_projection` rifiuta i tre diversi. Script: `POOLS`/`EXTRA` in `02`, `EXTRA` in `09`.
 
-## Ordine di lavoro (vision)
-
-1. ~~Label reali dai `.mat` + mAP/nDCG~~ **fatto**
-1b. ~~Redesign metriche per-asse, ambito sull'intera gallery~~ **fatto**
-2. Metriche semantiche/diagnostiche sui top-K (room-count MAE, adjacency
-   preservation) — **da fare**
-3. ~~Masking su immagine + studio del livello di masking~~ **fatto**
-4. ~~Astrazione encoder + benchmark multi-modello~~ **fatto** (5 encoder
-   **misurati**, full + partial, frozen e con head). ⚠️ Il registry ne conta
-   ora 8: `tipsv2` e `pecore` hanno i numeri del valid (`status.md §18`),
-   `pespatial` ha le 6 run frozen su disco ma **non ancora lette** (`§19`).
-   Nessuno dei tre ha il **partial** né la **head**: nella tabella del report
-   vanno con la colonna vuota, non confusi coi 5 storici.
-5. **Report breve per i prof** — metriche introdotte, studio del masking,
-   tabella comparativa multi-encoder ← prossimo passo, insieme alle analisi
-   residue (pooling gem/mean, per-asse sotto masking).
+Ciò che resta da fare sul retrieval, e ciò che è tagliato: `roadmap.md`.

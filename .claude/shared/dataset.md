@@ -3,6 +3,13 @@
 Unico dataset in uso in Fase 1. Planimetrie residenziali (stile cinese),
 top-down, con codifica semantica a colori per tipo di stanza.
 
+⚠️ **Il colore È `rType`, ma compresso** (misurato il 24 ago su 300 piante,
+`status.md §21.2`): il render è una funzione **deterministica** di `rType`
+(purezza 100% su 11 tipi su 12) ma **non iniettiva** — 13 tipi collassano in
+**6 colori**. Un solo giallo copre MasterRoom, SecondRoom, StudyRoom,
+ChildRoom e GuestRoom. Conseguenza: il ramo vision **legge le etichette**, ma
+a grana grossa (6 classi contro le 13 della ground truth).
+
 **Localizzazione:** `/work/cvcs2026/ai_interior_design/datasets/RPLAN/`
 
 ```
@@ -35,7 +42,7 @@ Tre file **aggregati** (non uno per pianta), letti solo da
 | `rType` | tipo di ogni stanza (intero, 13 classi) |
 | `rEdge` | `E×3`: `[nodo_i, nodo_j, tipo_relazione]` — adiacenze **tipizzate** (0..9) |
 | `gtBoxNew` | bounding box per stanza, `[x0,y0,x1,y1]` |
-| `gtBox` | footprint, ⚠️ **assi scambiati** `[y0,x0,y1,x1]` |
+| `gtBox` | footprint, ⚠️ **assi scambiati** `[y0,x0,y1,x1]` e massimi **inclusivi** |
 | `rBoundary` | poligoni per stanza |
 | `boundary` | contorno esterno (da cui l'ingresso) |
 
@@ -46,6 +53,14 @@ delle **label di rilevanza** per la valutazione di entrambi.
 ⚠️ **Trappola assi.** La geometria dei nodi usa **solo `gtBoxNew`**; di `gtBox`
 si usano solo area e aspect, invarianti allo scambio → il baco non può
 materializzarsi. Non introdurre usi nuovi di `footprint` per le posizioni.
+
+**Relazione esatta, misurata** (24 ago, 24.218 piante, **100%**,
+`status.md §21.1`): `gtBox[-1] == unione(gtBoxNew)[[1,0,3,2]] - [0,0,1,1]`.
+Il footprint è quindi **ricostruibile esattamente** dai box delle stanze → la
+ground truth geometrica è funzione dell'input del grafo (rilievo **A5 pieno**).
+Le prime R righe di `gtBox` **non** sono i `gtBoxNew` (coincidono nel 5% dei
+casi): il progetto usa solo l'ultima riga, ma il commento
+`rplan_metadata.py:177` («stesse bbox per stanza») è impreciso.
 `rNum` non esiste come campo: il numero di stanze si deriva da `len(rType)`.
 
 ## Split ufficiali — e la trappola del nome
@@ -71,7 +86,9 @@ Verificato: **67.405 / 67.453 (99,9%)** dei PNG hanno una struct `.mat`
 corrispondente. `snapshot_train/` è quindi quasi esattamente un **sottoinsieme**
 dell'unione dei `.mat`; i ~13k record in più sono piante senza snapshot
 renderizzato. ⚠️ Da qui la differenza di conteggio fra i rami: **graph 67.405 vs
-vision 67.453** → la late fusion richiede un **inner join sui nomi**.
+vision 67.453** → risolta dal 10 set con la **gallery condivisa**
+(`results/shared_gallery.json`, inner join congelato, usato da entrambi i rami:
+`architecture.md`).
 
 ## Grafi costruiti dai `.mat` (ramo graph)
 
@@ -94,9 +111,15 @@ per grafo → l'intero dataset sta comodamente in RAM. È questa scala che motiv
 - **Nodi** `x` `[N, 19]` = one-hot `rType` (13) + 6 feature geometriche da
   `gtBoxNew` normalizzate su griglia 256: `cx, cy, w, h, area, aspect`.
 - **Archi** `edge_index` `[2, 2E]` da `rEdge`, resi non orientati
-  (`to_undirected`) per il message passing simmetrico.
+  (`to_undirected`) per il message passing simmetrico. ⚠️ `2E` regge nel
+  **99,5%** dei grafi: 339/67.405 ne perdono 1-3 perché **397 piante hanno un
+  self-loop** (`i == j`) in `rEdge`, e simmetrizzarlo crea un duplicato che
+  viene fuso (`status.md §21.3`). **Non** sono archi paralleli: coppie (i,j)
+  ripetute non esistono in tutto il dataset.
 - **`edge_attr`** `[2E, 10]` = one-hot del tipo di relazione (0..9). Usato solo
-  da GAT (`edge_dim`), ignorato da GCN/SAGE.
+  da GAT (`edge_dim`), ignorato da GCN/SAGE. **Sempre one-hot puro**: 0 righe
+  fuori norma su 1.369.101 archi, e 0 id di relazione fuori da [0,9] su
+  822.048 (24 ago) → il `clamp` in `graph_builder.py:128-130` è codice morto.
 - **Attributi graph-level** (fuori dal message passing): `name`, `split`,
   `num_rooms`, `footprint_area`, `footprint_aspect`, `type_histogram` `[1,13]`
   (base della baseline training-free). Il tipo per nodo non serve come `y`: è
@@ -132,6 +155,7 @@ applicano al volo. Stessa logica dell'embedding RAW sul ramo vision.
 
 ## Altri dataset
 
-- **ResPlan — escluso** come corpus di training: nessuna label di rilevanza,
-  out-of-domain, tassonomia non allineabile senza perdite.
+- **ResPlan, CubiCasa5K** — obiettivo O3, in **stand-by** (decisione
+  utente 11 set, `roadmap.md §3`). Rischi noti, da citare nel report: nessuna label
+  di rilevanza, out-of-domain, tassonomia non allineabile senza perdite.
 - **Maticad** — rimandato a una fase successiva (indicazione dei prof).

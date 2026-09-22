@@ -10,6 +10,7 @@ image_size: 448          # risoluzione di pretrain (32x32=1024 patch). 224 e' le
                          # (multiplo di 14, pos-embed interpolate) e costa 4x meno,
                          # ma allinea il confronto agli altri encoder invece che al
                          # regime nativo del checkpoint. Sweep: multipli di 14.
+patch_size: 14           # lato della patch ViT: SOLO per il danno `patch` (B/14; il costruttore legge model.config.patch_size); evaluate lo confronta col modello caricato
 pooling: natural         # natural(CLS) | mean | gem sui patch token
 gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
 extraction_layer: -1     # layer da cui leggere i token: -1 ultimo, -2 penultimo, ...

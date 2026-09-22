@@ -276,6 +276,12 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--gallery", required=True,
                    help="image_paths.json (vision) o names.json (graph) della gallery")
+    p.add_argument("--gallery-b", default=None, dest="gallery_b",
+                   help="gallery del SECONDO --perquery, per il confronto CROSS-RAMO "
+                        "(vision 67.453 vs graph 67.405). Richiede esattamente due "
+                        "--perquery. ATTENZIONE: l'IDCG viene da gallery diverse, "
+                        "quindi il confronto e' appaiato sui nomi ma non perfettamente "
+                        "equo finche' non c'e' la gallery comune (fase B.3).")
     p.add_argument("--perquery", nargs="+", required=True,
                    help="uno o piu' .npz per-query (un sistema ciascuno)")
     p.add_argument("--label", nargs="+", default=None,
@@ -294,19 +300,31 @@ def main() -> None:
     weights = parse_weights(args.weights)
     axes = load_gallery_axes(args.gallery)
 
-    systems, data_by_system = [], {}
+    axes_b = None
+    if args.gallery_b:
+        if len(args.perquery) != 2:
+            raise ValueError("--gallery-b richiede esattamente due --perquery")
+        axes_b = load_gallery_axes(args.gallery_b)
+        print("[geometry_variants] CROSS-RAMO: A e B hanno gallery diverse. L'IDCG di "
+              "ciascun sistema e' calcolato sulla PROPRIA gallery; il delta resta "
+              "appaiato sui nomi, ma il confronto non e' perfettamente equo (fase B.3).")
+
+    systems, data_by_system, axes_by_system = [], {}, {}
     for i, path in enumerate(args.perquery):
         data = load_perquery(path)
-        check_gallery(axes, data, Path(path).name)
+        ax = axes_b if (axes_b is not None and i == 1) else axes
+        check_gallery(ax, data, Path(path).name)
         label = args.label[i] if args.label else str(data.meta.get("run_tag", Path(path).stem))
         systems.append(label)
         data_by_system[label] = data
+        axes_by_system[label] = ax
 
     # Controllo di coerenza: con i pesi originali il ricalcolo deve riprodurre il
     # numero salvato. Se non lo fa, i ret_rows o la gallery non corrispondono.
     for label, data in data_by_system.items():
         if args.k in list(data.meta.get("k_values", [])):
-            recomputed = ndcg_geometry_weighted(axes, data, BASELINE_WEIGHTS, args.k)
+            recomputed = ndcg_geometry_weighted(
+                axes_by_system[label], data, BASELINE_WEIGHTS, args.k)
             stored = stored_geometry_ndcg(data, args.k)
             print(f"[geometry_variants] {label}: ricalcolo (1,1,1) {recomputed:.6f} "
                   f"vs salvato {stored:.6f} (delta {recomputed - stored:+.2e})")
@@ -320,7 +338,7 @@ def main() -> None:
         key = tuple(w)
         results[key] = {}
         for label, data in data_by_system.items():
-            names, values = perquery_ndcg_geometry(axes, data, w, args.k)
+            names, values = perquery_ndcg_geometry(axes_by_system[label], data, w, args.k)
             per_query[(key, label)] = (names, values)
             results[key][label] = float(values.mean()) if len(values) else float("nan")
 

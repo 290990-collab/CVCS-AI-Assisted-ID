@@ -47,6 +47,11 @@ _GEOM_START = NUM_ROOM_TYPES
 _GEOM_DIM = 6
 _ASPECT_COL = _GEOM_START + _GEOM_DIM - 1  # colonna assoluta di aspect
 
+# Marcatore "vicini persi" (variante `asymlost`, 14 set 2026): colonna in PIU'
+# appesa DOPO le 19 feature di `graph_builder`, solo con `lost_marker=True`.
+LOST_MARKER_COL = _GEOM_START + _GEOM_DIM  # = 19 = NODE_FEATURE_DIM
+LOST_MARKER_DIM = 1
+
 # Piccolo epsilon per non dividere per zero se una colonna e' costante.
 _EPS = 1e-6
 
@@ -105,6 +110,58 @@ class NormalizeNodeGeometry(BaseTransform):
 
         data.x = data.x.clone()
         data.x[:, _GEOM_START:_GEOM_START + _GEOM_DIM] = geom
+        return data
+
+
+def lost_neighbor_count(edge_index: torch.Tensor, keep: torch.Tensor) -> torch.Tensor:
+    """Per ogni nodo, quanti vicini DISTINTI sono stati tolti.
+
+    Il conteggio va fatto sul grafo INTERO (prima di togliere le stanze): e'
+    l'unico posto in cui gli archi verso le stanze rimosse esistono ancora.
+    Una coppia (i, j) conta +1 per i se keep[i] e not keep[j]. Le coppie si
+    deduplicano qui (non si assume un edge_index gia' coalesced), cosi' archi
+    paralleli non gonfiano il conteggio; i self-loop non contano mai (keep[i]
+    e not keep[i] non possono valere insieme); i nodi tolti valgono 0.
+
+    Input:  edge_index long [2, E] (grafo intero), keep bool [N].
+    Output: long [N].
+    """
+    num_nodes = keep.numel()
+    count = torch.zeros(num_nodes, dtype=torch.long, device=keep.device)
+    if edge_index.numel() == 0:
+        return count
+    src, dst = edge_index[0], edge_index[1]
+    lost = keep[src] & ~keep[dst]
+    pairs = torch.unique(src[lost] * num_nodes + dst[lost])   # coppie distinte
+    count.scatter_add_(0, pairs // num_nodes, torch.ones_like(pairs))
+    return count
+
+
+class AppendLostMarker(BaseTransform):
+    """Appende il marcatore "vicini persi" come ULTIMA colonna di `x`.
+
+    Se il grafo porta l'attributo `lost_marker` [N] (grafo parziale, vedi
+    `graph_partial_query.make_partial_graph`) lo usa e lo rimuove; altrimenti
+    (grafo intero: gallery, sonda) appende zeri, che per costruzione e' il valore
+    corretto quando non manca nessuna stanza.
+
+    Raises: ValueError se `x` non ha esattamente LOST_MARKER_COL colonne
+            (marcatore gia' appeso, o feature di forma inattesa).
+    """
+
+    def forward(self, data: Data) -> Data:
+        if data.x.size(1) != LOST_MARKER_COL:
+            raise ValueError(
+                f"AppendLostMarker: x ha {data.x.size(1)} colonne, attese "
+                f"{LOST_MARKER_COL} (marcatore gia' appeso?)"
+            )
+        marker = getattr(data, "lost_marker", None)
+        if marker is None:
+            col = data.x.new_zeros(data.x.size(0), LOST_MARKER_DIM)
+        else:
+            col = marker.to(dtype=data.x.dtype).view(-1, LOST_MARKER_DIM)
+            del data.lost_marker
+        data.x = torch.cat([data.x, col], dim=1)
         return data
 
 
@@ -170,6 +227,7 @@ def build_node_transform(
     normalize: bool = True,
     drop_self_loops: bool = True,
     stats: dict[str, np.ndarray] | None = None,
+    lost_marker: bool = False,
 ) -> BaseTransform | None:
     """Compone la trasformazione dei nodi secondo i flag di ablation.
 
@@ -181,6 +239,8 @@ def build_node_transform(
         drop_self_loops: se True applica RemoveSpuriousSelfLoops.
         stats:           statistiche da compute/load_geometry_stats; obbligatorie
                          se normalize=True.
+        lost_marker:     se True appende il marcatore "vicini persi" come ULTIMO
+                         passo (AppendLostMarker): x passa da 19 a 20 colonne.
     Output: una trasformazione PyG (singola o Compose), oppure None se nessun
             pezzo e' attivo (dataset grezzo).
     Raises: ValueError se normalize=True ma stats mancano.
@@ -200,6 +260,9 @@ def build_node_transform(
                 aspect_clip=float(stats["aspect_clip"]),
             )
         )
+
+    if lost_marker:
+        steps.append(AppendLostMarker())   # ultimo: non deve passare dalla z-score
 
     if not steps:
         return None

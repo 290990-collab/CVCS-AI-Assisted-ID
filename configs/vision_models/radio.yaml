@@ -6,5 +6,6 @@
 # scaricato al primo uso) e normalizza l'input internamente.
 hf_name: nvidia/C-RADIOv2-B
 image_size: 224          # multiplo del patch size (16); risoluzione flessibile (sweep libero)
+patch_size: 16           # lato della patch ViT: SOLO per il danno `patch` (verificato: config.json HF di C-RADIOv2-B); evaluate lo confronta col modello caricato
 pooling: natural         # natural(summary token) | mean | gem sulle spatial features
 gem_p: 3.0               # esponente del GeM (solo se pooling=gem)

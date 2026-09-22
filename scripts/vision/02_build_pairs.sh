@@ -11,6 +11,8 @@
 #
 # $2 = una sola risoluzione (solo per gli encoder che ne hanno piu' di una,
 # vedi resolutions_for in _common.sh): permette un job per risoluzione.
+# env POOLS = pooling (vuoto = tutti) · EXTRA = override dotlist (15 set 2026, status.md §46):
+#   POOLS=gem EXTRA="training.damage=nowalls_random" sbatch scripts/vision/02_build_pairs.sh pespatial
 
 #SBATCH --job-name="vx_02_build_pairs"
 #SBATCH --output=logs/%x_%j.log
@@ -32,18 +34,21 @@ source /work/cvcs2026/ai_interior_design/CVCS-AI-Assisted-ID/scripts/vision/_com
 cd "$PROJECT_DIR"
 mkdir -p logs
 
-echo "=== $(date) | STAGE C coppie positive | modelli: $(select_models "$1") ==="
+POOLS="${POOLS:-}"          # vuoto = tutti i pooling dell'encoder (es. POOLS=gem)
+EXTRA="${EXTRA:-}"          # override dotlist aggiuntivi (es. EXTRA="training.damage=nowalls_random")
+
+echo "=== $(date) | STAGE C coppie positive | modelli: $(select_models "$1") | pooling: ${POOLS:-tutti} | extra: ${EXTRA:-nessuno} ==="
 nvidia-smi
 
 for MODEL in $(select_models "$1"); do
-  for POOL in $(poolings_for "$MODEL"); do
+  for POOL in ${POOLS:-$(poolings_for "$MODEL")}; do
     for RES in $(select_resolutions "$MODEL" "${2:-}"); do
       VAR=$(variant_for "$POOL" "$RES")
       RFLAGS=$(res_flags "$RES")
       echo ""
       echo "########  PAIRS: $(label_for "$MODEL" "$POOL" "$RES")  ########"
       python -m src.vision.data.projection_pairs \
-          model.name=$MODEL model.variant=$VAR model.kwargs.pooling=$POOL $RFLAGS
+          model.name=$MODEL model.variant=$VAR model.kwargs.pooling=$POOL $RFLAGS $EXTRA
     done
   done
 done

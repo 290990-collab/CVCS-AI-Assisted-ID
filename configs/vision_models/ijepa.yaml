@@ -6,6 +6,7 @@
 # degli altri encoder del benchmark.
 hf_name: facebook/ijepa_vith14_1k
 image_size: 224          # risoluzione dei checkpoint I-JEPA ufficiali (sweep: multipli di 14)
+patch_size: 14           # lato della patch ViT: SOLO per il danno `patch` (verificato: config.json HF di ijepa_vith14_1k); evaluate lo confronta col modello caricato
 pooling: natural         # natural/mean (coincidono, niente CLS) | gem
 gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
 extraction_layer: -1     # layer da cui leggere i patch token: -1 ultimo, -2 penultimo, ...

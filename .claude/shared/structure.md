@@ -13,6 +13,65 @@ Ogni modulo è un entrypoint `python -m`. Non c'è una CLI centrale.
   equivalenza esatta su tutta la gallery.
 - **`src/evaluation/metrics.py`** — funzioni pure: `ndcg_at_k` (primaria),
   `recall_at_k`, `average_precision_at_k` (solo assi discreti).
+- **`src/evaluation/perquery.py`** — schema `perquery/1`: scrive e rilegge il
+  valore di **ogni** query (`PerQueryRecorder` / `load_perquery`). È il formato
+  che rende possibili tutti i confronti appaiati. Nel **partial** aggiunge
+  `self_rr` `[Q]`, il reciprocal rank del self.
+- **`src/evaluation/significance.py`** — delta appaiato + CI 95% bootstrap +
+  Wilcoxon. `--allow-gallery-mismatch` solo per i file **pre-B.3** (con la
+  gallery condivisa non serve più); `--metric self_rr`
+  è l'endpoint del criterio A.5 (forma `[Q]`, senza asse né K → gestito a parte,
+  **non** dentro `METRICS`).
+- ⚠️ *(14 set)* `robustness_auc --robust` = **metro in vigore** (`status.md §38`): media per
+  query delle AUC su `nowalls-random`, `crop`, `patch`.
+- **`src/evaluation/robustness_auc.py`** *(10 set)* — AUC del criterio A.5 per
+  query (`rank` = classifica delle config trovate in una o più cartelle,
+  `compare` = delta appaiato A − B con CI). Riproduce §24 esatto. È lo strumento
+  per i confronti vision↔graph sulla robustezza (tollera le query saltate dal
+  graph, `significance --metric self_rr` no).
+- **Late fusion** *(16 set, `status.md §49`)* — `src/evaluation/query_vectors.py` (contratto `qvec/1`:
+  vettori delle query danneggiate + stanze tolte, scritti dalle due valutazioni con un flag opt-in) ·
+  `late_fusion.py` (CPU: concatenazione `[√α·v ; √(1−α)·g]`, file fusi in `perquery/1`) ·
+  `fusion_select.py` (`check` C1-C5, `select` = α*, verdetto, oracolo). Script `evaluation/08-10`.
+  Controllo effetto d'insieme *(17 set, §50)*: `late_fusion --pair graph-graph` (asymrob + replica), `fusion_select check/select --pair graph-graph` e `complementarity`. Script `evaluation/11-12`.
+  Controllo «modelli diversi, stessa informazione» *(17 set, §51)*: `--pair vision-vision` (pespatial + radio), `complementarity --control-pair vision-vision` (regola a quattro esiti). Script `evaluation/13-14`.
+- **`src/evaluation/gallery_join.py`** *(25 ago, B.3)* — inner join dei nomi fra
+  i due rami: CLI che congela l'intersezione in un JSON con provenienza e sha1,
+  più `restrict_rows` che restringe **e riordina** una gallery sull'ordine
+  canonico. È ciò che dà ai due rami lo stesso `gallery_sha1` (quindi le stesse
+  query) e rende il confronto cross-ramo appaiato senza override.
+- **`src/evaluation/random_floor.py`** — i due null (`random`, `constant`): il
+  pavimento contro cui si normalizzano tutte le percentuali.
+- **`src/evaluation/geometry_variants.py`** — sensibilità dell'asse geometria ai
+  pesi delle sue tre componenti (post-hoc sui `ret_rows`, niente GPU).
+  `--gallery-b` per confrontare due rami con gallery diverse.
+- **`src/evaluation/metric_diagnostics.py`** — diagnostica di saturazione/scala
+  delle metriche.
+
+## Figure del report (`src/figures/`) *(18 set, `status.md §54`)*
+
+Solo lettura di risultati già su disco, CPU, nessun job. Un modulo per figura,
+entrypoint `python -m src.figures.<nome>`, output in `figures/` (PDF per il report,
+PNG per guardarla, `*.sources.txt` con file letti/comando/numeri).
+
+- **`style.py`** — larghezze del report a **due colonne** (3.25″ / 6.875″), font,
+  palette Okabe-Ito con tratteggi e marker per il bianco e nero, `new_figure`,
+  `mean_ci` (stesso bootstrap di `significance`), `save_figure`.
+- **`damage_test.py`** — F7: self-recovery vs stanze tolte sul test, quattro sistemi
+  (baseline `hist` · vision · graph · fusione), letti dai file fusi (α=1 / α=0).
+- **`alpha_valid.py`** — F8: AUC vs α con le tre coppie fuse; ricalcola le medie dai
+  per-query e **rifiuta** di disegnare se non coincidono col json di `fusion_select`.
+- **`teaser_valid.py`** — F1: query danneggiata + primi 5 risultati di vision/graph/fusione.
+  Ricostruisce la classifica da `ret_rows` + `self_rr` e ridisegna il danno dalle stanze del
+  `qvec` con `vision_damage.render_wiped_image`; nessun job, nessuna GPU.
+- **`damage_kinds_valid.py`** — F3: due pannelli, i tre danni sulla config di record e
+  l'artefatto dei muri (`random` vs `nowalls-random`, stesse stanze).
+- **`pipeline.py`** — F2: schema dei due rami + fusione + misura condivisa; le dimensioni,
+  α e la gallery sono **lette dagli artefatti** a ogni disegno, non scritte a mano.
+- **`classes_valid.py`** — F5: dimensione delle classi di equivalenza da `num_relevant`;
+  verifica che due sistemi diano lo stesso conteggio.
+- **`ablation_valid.py`** — F6: R di tutte le config per encoder (box + punti), con cache
+  in `figures/f_ablation_valid.data.json` (`--refresh`).
 
 ## Ramo vision (`src/vision/`)
 
@@ -52,20 +111,33 @@ Ogni modulo è un entrypoint `python -m`. Non c'è una CLI centrale.
   topology) + `render_partial_image(png, meta, removed_idx, open_boundary)`
   (affine griglia-256→px, flood-fill, cancellazione dei muri) +
   `make_partial_query`.
+- `data/vision_damage.py` *(11-14 set)* — entry point unico del danno alla query
+  (`damaged_query`, anche `return_image=True` per le figure): stanze storiche, crop,
+  patch ViT e `nowalls_*` (stanze tolte **con** i muri, `status.md §36`). Lo usano
+  `evaluate.py` e `retrieval_visualization.py`: figura e numeri vedono lo stesso danno.
 - `data/projection_pairs.py` — cache delle coppie positive self-supervised
   (`pairs.npz`: `anchors`, `positives`, `splits`). Render-cache condivisa su
   disco (`embeddings/vision/_render_cache/<hash>/`), scrittura **atomica**,
   seeding deterministico **per pianta** (non per indice) → il rendering si paga
-  una volta invece di 14, bit-identico.
+  una volta invece di 14, bit-identico. *(15 set)* `training.damage` = `random` (storico) |
+  `nowalls_random` (`vision_damage.room_damage_image`): entra nell'hash della cache solo se ≠
+  `random`, si salva in `pairs.npz` (`damage`); la probe lo scrive in `meta.strategy` e
+  `train_projection` rifiuta coppie, probe e config con danni diversi (`status.md §46`).
 - `training/train_projection.py` — allena la head sui vettori cachati (backbone
-  frozen) con InfoNCE; train su `train`, **early stopping sulla val-loss del
-  valid**, salva `head.pt`. wandb opzionale config-gated.
+  frozen) con InfoNCE; train su `train`. Selezione dell'epoca con
+  `training.selection`: `val_loss` (storico → `head.pt`) o `probe_partial`
+  (B.6 → `head.file`, es. `head_probe_conv.pt`; salva anche la scelta della
+  val-loss nella stessa run). Init della head seedato (10 set). wandb opzionale.
+- `training/retrieval_probe.py` *(10 set, B.6)* — probe partial della head:
+  degrada 1000 query **valid disgiunte** da quelle di eval, ne salva le feature
+  RAW (`probe_partial.npz`) e calcola l'AUC di self-recovery per epoca.
 - `evaluation/evaluate.py` — orchestratore: modalità **full** o **partial**
   (blocco `partial` del config), accumulo per-asse (`_accumulate_axes`, flag
   `exclude_self`), tabella asse × metrica.
 - `utils/config.py` — `load_vision_config(path, overrides)` (innesta il preset
   `configs/vision_models/<name>.yaml` e applica gli **override dotlist** per
   ultimi) + `transform_tag(cfg)` (`raw|whiten|whiten768|head|head+whiten`).
+- ⚠️ *(14 set)* il partial delle visualizzazioni passa da `vision_damage.damaged_query`.
 - `utils/retrieval_visualization.py` — CLI: pannelli query vs top-k in
   `results/visualizations/<name>_<variant>_<full|partial>/`, thumbnail 512px,
   rilevanza per-asse in header, marcatore `exact:C/T`, `[orig]` per il
@@ -118,7 +190,15 @@ Ogni modulo è un entrypoint `python -m`. Non c'è una CLI centrale.
   in coordinate **grezze** (le stats non sono isotrope: `std(cy)/std(cx)=1.24`)
   → de-normalizza, trasforma, ri-normalizza. `feat_mask` è **per-cella**
   (nodo, colonna). Le viste mantengono numero nodi e vettore `batch` → righe
-  InfoNCE allineate.
+  InfoNCE allineate. **`pair_mode`** *(10 set, opzione D di §30.6)*:
+  `symmetric` (default, storico bit per bit) | `asym_partial` (vista A = grafo
+  intero, vista B = stanze **rimosse** davvero, f~U[0.25, 0.75], come il partial
+  di valutazione); flag `--pair-mode`, chiave in `gcn.yaml`.
+- **`graph_partial_query.py`** *(25 ago, C.0)* — query di grafo degradata:
+  `filter_meta` (toglie stanze e **rimappa** gli archi) + `make_partial_graph`.
+  Importa `select_rooms_to_remove` dal ramo vision di proposito: l'oggetto
+  condiviso è il **protocollo**, e una copia che diverge romperebbe
+  l'appaiamento. Query svuotate: contate e saltate.
 - **`training/train_gnn.py`** — `info_nce`, `_train_epoch` (due viste per
   batch), `_val_loss` (augmentation deterministica, **solo diagnostica**),
   `train(cfg)` con early stopping + `encoder.pt` + `geom_stats.npz` +
@@ -174,8 +254,12 @@ Ogni modulo è un entrypoint `python -m`. Non c'è una CLI centrale.
   argparse: underscore→trattino, booleani con mapping esplicito). I config sono
   quindi **vivi**, non documentazione morta.
 - `vision/01_extract_raw → 02_build_pairs → 03_train_head → 04/05_eval_*_full →
-  06/07_eval_*_partial → 08_visualize`.
+  06/07_eval_*_partial → 08_visualize`; `09_train_head_probe` (B.6).
 - `graph/01_graph_builder → 02_graph_dataset → 03_train_gnn → 04_eval_gnn`.
+- `evaluation/` (protocollo di misura, core condiviso): `01_random_floor` ·
+  `02/03_perquery_vision_{valid,test}` · `04_perquery_graph` ·
+  `05_perquery_vision_partial_valid` · `06_perquery_graph_partial_valid`.
+  Sono gli **unici** che salvano i per-query.
 - Convenzione: **nessun argomento = tutti i modelli**, un argomento = uno solo
   (parallelizza). Secondo argomento (graph) = variante di ablation.
 - Ordine, dipendenze e comandi pronti: **`COMANDI.md`** (root).

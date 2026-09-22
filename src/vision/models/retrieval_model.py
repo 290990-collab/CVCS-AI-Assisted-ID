@@ -119,6 +119,7 @@ class VisionRetrievalPipeline:
         whiten: bool = False,
         eps: float = 1e-6,
         whiten_dim: int | None = None,
+        fit_rows: list[int] | np.ndarray | None = None,
     ):
         """
         Prepara la gallery per la ricerca partendo dagli embedding RAW: applica
@@ -127,6 +128,13 @@ class VisionRetrievalPipeline:
 
         Tutte le combinazioni (raw / whiten / head / head+whiten) riusano lo stesso
         `raw_embeddings` → si cambia contributo senza ri-estrarre nulla.
+
+        Args:
+            fit_rows: righe su cui STIMARE il whitening. None = tutta la gallery
+                (protocollo trasduttivo, quello di tutte le run fino al 24 ago
+                2026). Con le righe del train si rispetta il vincolo DURO 1
+                («statistiche dal solo train»): la gallery indicizzata resta
+                comunque INTERA, cambia solo l'insieme di stima.
         """
         assert self.raw_embeddings is not None, \
             "Chiama extract_embeddings() o load() prima di prepare_index()"
@@ -135,7 +143,18 @@ class VisionRetrievalPipeline:
         gallery = self._apply_head(self.raw_embeddings)
 
         if whiten:
-            self._fit_whitening(gallery, eps=eps, dim=whiten_dim)
+            fit_on = gallery
+            if fit_rows is not None:
+                rows = np.asarray(fit_rows, dtype=np.int64)
+                if rows.size == 0:
+                    raise ValueError(
+                        "fit_rows è vuoto: il whitening non ha righe su cui stimare. "
+                        "Controlla whitening.fit_split e la presenza dei metadati .mat."
+                    )
+                fit_on = gallery[rows]
+            print(f"[Retrieval] Whitening stimato su {len(fit_on)}/{len(gallery)} "
+                  f"righe della gallery")
+            self._fit_whitening(fit_on, eps=eps, dim=whiten_dim)
         else:
             self.whiten_mean = self.whiten_matrix = None
 
@@ -233,7 +252,8 @@ class VisionRetrievalPipeline:
     def query(
         self,
         query_image: torch.Tensor,
-        top_k: int = 5
+        top_k: int = 5,
+        return_embeddings: bool = False,
     ) -> list[dict]:
         """
         Dato un tensore immagine, restituisce i top-k floor plan più simili.
@@ -241,6 +261,9 @@ class VisionRetrievalPipeline:
         Args:
             query_image: tensore [3, 224, 224] o [1, 3, 224, 224]
             top_k:       numero di risultati da restituire
+            return_embeddings: if True (late fusion, 16 Sep 2026) also return the
+                         query vectors of THIS forward: (results, query_raw [1, D],
+                         query_final [1, D']). False = historical return, unchanged.
 
         Returns:
             lista di dizionari con 'path' e 'score' (cosine similarity)
@@ -254,6 +277,8 @@ class VisionRetrievalPipeline:
         with torch.no_grad():
             query_emb = self.encoder(query_image.to(self.device))
             query_np  = query_emb.cpu().numpy().astype("float32")
+
+        query_raw = query_np   # [1, D] RAW encoder output (the head/whitening below copy)
 
         # stesse trasformazioni della gallery: head opzionale, poi whitening + L2
         query_np = self._apply_head(query_np)
@@ -269,6 +294,8 @@ class VisionRetrievalPipeline:
                 "score": float(score)       
             })
 
+        if return_embeddings:
+            return results, query_raw, query_np
         return results
 
     # ------------------------------------------------------------------

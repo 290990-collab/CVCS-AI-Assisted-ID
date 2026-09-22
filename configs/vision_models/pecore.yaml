@@ -12,6 +12,7 @@ timm_name: vit_pe_core_base_patch16_224.fb
 image_size: 224          # BLOCCATA: checkpoint a risoluzione fissa (RoPE su griglia
                          # 14x14). Un valore diverso solleva ValueError: per cambiare
                          # risoluzione si cambia variante, come per SigLIP2.
+patch_size: 16           # lato della patch ViT: SOLO per il danno `patch` (timm vit_pe_core_base_patch16_224); evaluate lo confronta col modello caricato
 pooling: natural         # natural(attention pool + proiezione CLIP, 1024d) | mean | gem (768d)
 gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
 extraction_layer: -1     # layer da cui leggere i token: -1 ultimo, -2 penultimo, ...

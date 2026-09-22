@@ -33,6 +33,17 @@ positivo). Tutto il resto e' esplorativo e va dichiarato tale.
 Uso tipico:
 
     python -m src.evaluation.significance --a run_A.npz --b run_B.npz --k 10
+
+Nel **partial** c'e' un endpoint in piu': `--metric self_rr`, il reciprocal rank
+della pianta sorgente. E' un numero per query (nessun asse, nessun k) ed e' la
+misura su cui si decide «migliore = piu' robusto» (criterio A.5, status.md § 23):
+
+    python -m src.evaluation.significance --metric self_rr \
+        --a <A>_partial-random-f0.75_valid.npz --b <B>_partial-random-f0.75_valid.npz
+
+I due file devono avere lo **stesso** `partial_label` (stessa strategia e stessa
+frazione mascherata): lo impone `check_compatible`, perche' confrontare due
+livelli di masking diversi non misura la robustezza ma il livello.
 """
 
 from __future__ import annotations
@@ -51,6 +62,15 @@ BOOTSTRAP_CHUNK = 500          # righe di resample per blocco: tiene la memoria 
 PRIMARY_K = 10
 PRIMARY_METRIC = "ndcg"
 METRICS = ("ndcg", "recall", "map")
+
+# Metrica del solo PARTIAL, con una forma diversa da tutte le altre: `self_rr`
+# e' [Q] — un numero per query, senza asse e senza k — perche' il self-recovery
+# ("ho ritrovato la pianta sorgente?") non si declina per asse. Non entra in
+# METRICS: gli array di quelle sono [assi, k, Q] e il codice che le legge
+# indicizza per (asse, k). Va quindi trattata a parte, non aggiunta a un elenco.
+# E' l'endpoint del criterio A.5 «migliore = piu' robusto» (status.md § 23).
+SELF_RR_METRIC = "self_rr"
+CLI_METRICS = METRICS + (SELF_RR_METRIC,)
 
 # Campi del meta che DEVONO coincidere: se differiscono i due file non misurano
 # la stessa cosa e il confronto e' privo di senso (non e' una questione di
@@ -105,9 +125,13 @@ def check_compatible(meta_a: dict, meta_b: dict, k: int, allow_gallery_mismatch:
     Args:
         meta_a, meta_b: i `meta` dei due `.npz`.
         k: profondita' richiesta, deve esistere in entrambi i `k_values`.
-        allow_gallery_mismatch: unico modo per confrontare gallery diverse
-            (serve a vision vs graph, che hanno taglie diverse per costruzione:
-            i due IDCG non sono identici, il confronto va dichiarato).
+        allow_gallery_mismatch: unico modo per confrontare gallery diverse.
+            ⚠️ Dal 25 ago 2026 (**B.3**) vision vs graph NON ne ha piu' bisogno,
+            se entrambe le run usano lo stesso `gallery_names` (inner join,
+            `src/evaluation/gallery_join.py`): stessa lista, stesso ordine,
+            stesso sha1. Il flag resta per i confronti con i file piu' vecchi,
+            dove le due gallery avevano taglie diverse (67.453 vs 67.405) e i due
+            IDCG non erano identici — li' il confronto va dichiarato zoppo.
 
     Raises:
         ValueError: alla prima incompatibilita' trovata.
@@ -166,6 +190,49 @@ def paired_values(data_a, data_b, axis: str, metric: str, k: int):
         x, y = float(row_a[i]), float(row_b[j])
         if np.isnan(x) or np.isnan(y):
             continue                   # skip singleton: vale in AND sui due file
+        a_vals.append(x)
+        b_vals.append(y)
+        names.append(str(name))
+
+    return (np.asarray(a_vals, dtype=float),
+            np.asarray(b_vals, dtype=float),
+            names)
+
+
+def paired_self_rr(data_a, data_b):
+    """Vettori appaiati del reciprocal rank del self, per il partial.
+
+    Come `paired_values` ma senza asse ne' k: `self_rr` e' [Q]. L'appaiamento
+    resta **sui nomi**, e restano solo le query presenti e non-NaN in entrambi.
+
+    Args:
+        data_a, data_b: `PerQueryData` di due run in `mode="partial"`.
+
+    Returns:
+        (a, b, names) — array float64 [P] allineati e i nomi tenuti.
+
+    Raises:
+        ValueError: se uno dei due file non contiene `self_rr` (cioe' non e' una
+            run partial, oppure e' stato scritto da una versione precedente).
+    """
+    for tag, d in (("A", data_a), ("B", data_b)):
+        if getattr(d, "self_rr", None) is None:
+            raise ValueError(
+                f"{tag}: il file non contiene `self_rr` (mode={d.meta.get('mode')!r}). "
+                "La metrica self_rr esiste solo nelle run partial: rilancia la "
+                "valutazione con partial.enabled=true e eval.perquery_dir valorizzato"
+            )
+
+    row_a, row_b = data_a.self_rr, data_b.self_rr
+    col_b = {str(name): i for i, name in enumerate(data_b.names)}
+    a_vals, b_vals, names = [], [], []
+    for i, name in enumerate(data_a.names):
+        j = col_b.get(str(name))
+        if j is None:
+            continue
+        x, y = float(row_a[i]), float(row_b[j])
+        if np.isnan(x) or np.isnan(y):
+            continue
         a_vals.append(x)
         b_vals.append(y)
         names.append(str(name))
@@ -268,6 +335,34 @@ def compare(data_a, data_b, axis: str, metric: str, k: int,
     }
 
 
+def compare_self_rr(data_a, data_b,
+                    min_pair_fraction: float = DEFAULT_MIN_PAIR_FRACTION) -> dict:
+    """Confronto appaiato sul self-recovery (`self_rr`), endpoint del criterio A.5.
+
+    Ritorna lo **stesso dict** di `compare`, cosi' `print_rows` lo stampa senza
+    saperne nulla: al posto dell'asse c'e' l'etichetta "self-recovery" e la
+    profondita' e' "-" perche' il reciprocal rank non ne ha una.
+    """
+    a, b, names = paired_self_rr(data_a, data_b)
+    diff = a - b
+    lo, hi = bootstrap_ci(diff)
+    p, note = wilcoxon_p(a, b)
+    n_ref = min(len(data_a.names), len(data_b.names))
+    fraction = len(names) / n_ref if n_ref else 0.0
+    return {
+        "axis": "self-recovery", "metric": SELF_RR_METRIC, "k": "-",
+        "n_pairs": len(names), "n_ref": n_ref,
+        "pair_fraction": fraction,
+        "reliable": fraction >= min_pair_fraction,
+        "min_pair_fraction": min_pair_fraction,
+        "mean_a": float(a.mean()) if len(a) else float("nan"),
+        "mean_b": float(b.mean()) if len(b) else float("nan"),
+        "delta": float(diff.mean()) if len(diff) else float("nan"),
+        "ci_lo": lo, "ci_hi": hi,
+        "p": p, "p_note": note,
+    }
+
+
 # ----------------------------------------------------------------------
 # Stampa.
 # ----------------------------------------------------------------------
@@ -316,7 +411,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--b", required=True, help="file per-query .npz del sistema B")
     p.add_argument("--axis", nargs="+", default=list(AXES), choices=list(AXES),
                    help="assi da confrontare (default: tutti)")
-    p.add_argument("--metric", default=PRIMARY_METRIC, choices=list(METRICS))
+    p.add_argument("--metric", default=PRIMARY_METRIC, choices=list(CLI_METRICS),
+                   help="ndcg|recall|map sono per-asse; `self_rr` (self-recovery, "
+                        "solo run partial) ignora --axis e --k: e' un numero per "
+                        "query. E' l'endpoint del criterio A.5 (status.md § 23)")
     p.add_argument("--k", type=int, default=PRIMARY_K)
     p.add_argument("--allow-gallery-mismatch", action="store_true",
                    dest="allow_gallery_mismatch",
@@ -340,6 +438,27 @@ def main() -> None:
     print(f"[significance] bootstrap B={BOOTSTRAP_B} seed={BOOTSTRAP_SEED}, "
           f"Wilcoxon {'scipy' if HAVE_SCIPY else 'NON disponibile'}, "
           f"copertura minima {100 * args.min_pair_fraction:.0f}% delle query\n")
+
+    # `self_rr` non si declina per asse: un confronto solo, nessuna famiglia di
+    # test e quindi nessuna correzione di Holm. Le metriche per-asse non si
+    # stampano qui comunque: sono un'altra domanda, si chiedono con
+    # `--metric ndcg`. ⚠️ Dal 25 ago 2026 (B.4) i file partial NUOVI hanno
+    # `exclude_self=True` e le loro metriche per-asse SONO confrontabili col
+    # full; quelli scritti prima hanno False e `check_compatible` li rifiuta —
+    # che è il comportamento voluto, non un bug.
+    if args.metric == SELF_RR_METRIC:
+        row = compare_self_rr(data_a, data_b, args.min_pair_fraction)
+        print_rows([row], "self-recovery (MRR) — endpoint del criterio A.5 "
+                          "«migliore = piu' robusto», test singolo")
+        print(f"masking: A partial_label={data_a.meta.get('partial_label')!r} · "
+              f"B partial_label={data_b.meta.get('partial_label')!r} "
+              "(devono coincidere: lo garantisce check_compatible)")
+        print("delta = media(A) - media(B); CI percentile appaiato sulle differenze.")
+        print("NB: le metriche per-asse non sono stampate qui: sono un'altra "
+              "domanda (--metric ndcg). Dal 25 ago (B.4) i file partial nuovi le "
+              "hanno con exclude_self=True, quindi confrontabili col full; i file "
+              "piu' vecchi hanno False e vengono rifiutati dal check di compatibilita'.")
+        return
 
     requested = [compare(data_a, data_b, ax, args.metric, args.k, args.min_pair_fraction)
                  for ax in args.axis]

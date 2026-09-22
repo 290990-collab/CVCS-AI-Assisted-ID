@@ -48,10 +48,13 @@ def info_nce(za: torch.Tensor, zp: torch.Tensor, temperature: float) -> torch.Te
 
 
 def load_head(
-    save_dir: str, in_dim: int, hidden_dim: int, out_dim: int, device: str
+    save_dir: str, in_dim: int, hidden_dim: int, out_dim: int, device: str,
+    filename: str = "head.pt",
 ) -> ProjectionHead:
-    """Ricostruisce la head dai dim del config e ne carica i pesi da `head.pt`."""
+    """Ricostruisce la head dai dim del config e ne carica i pesi da `filename`
+    (`head.file` nel config: `head.pt` = selezione su val-loss, `head_probe.pt`
+    = selezione sulla probe partial della fase B.6)."""
     head = ProjectionHead(in_dim, hidden_dim, out_dim)
-    state = torch.load(Path(save_dir) / "head.pt", map_location=device)
+    state = torch.load(Path(save_dir) / filename, map_location=device)
     head.load_state_dict(state)
     return head.to(device).eval()

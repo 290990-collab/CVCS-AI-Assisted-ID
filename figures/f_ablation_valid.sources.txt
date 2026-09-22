@@ -1,0 +1,19 @@
+# f_ablation_valid — figura del report
+data:     2026-09-18 17:07
+comando:  python -m src.figures.ablation_valid
+
+numeri della figura:
+  split: valid · cartella: results/perquery/vision_damage_valid_B
+  config lette: 55 (saltate: 0)
+  pecore     n=6 mediana 0.1490 min 0.0148 max 0.2806 · migliore: vision_pecore_mean_whiten-train
+  siglip2    n=6 mediana 0.1619 min 0.0604 max 0.2923 · migliore: vision_siglip2_mean_whiten-train
+  tipsv2     n=12 mediana 0.2096 min 0.1009 max 0.3168 · migliore: vision_tipsv2_natural224_whiten-train
+  dinov2     n=6 mediana 0.2585 min 0.1328 max 0.3810 · migliore: vision_dinov2_natural_whiten-train
+  ijepa      n=4 mediana 0.2657 min 0.1069 max 0.4259 · migliore: vision_ijepa_natural_whiten-train
+  dinov3     n=6 mediana 0.2764 min 0.1573 max 0.3855 · migliore: vision_dinov3_mean_whiten-train
+  radio      n=6 mediana 0.3351 min 0.1291 max 0.5161 · migliore: vision_radio_natural_whiten-train
+  pespatial  n=6 mediana 0.3864 min 0.1950 max 0.5245 · migliore: vision_pespatial_gem_whiten-train
+
+file letti:
+  results/perquery/vision_damage_valid_B
+  figures/f_ablation_valid.data.json

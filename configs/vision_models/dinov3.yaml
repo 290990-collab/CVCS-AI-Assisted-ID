@@ -5,6 +5,7 @@
 # essere autenticati (`huggingface-cli login`).
 hf_name: facebook/dinov3-vitb16-pretrain-lvd1689m
 image_size: 224          # risoluzione di pretrain dei checkpoint dinov3 vitb16 (sweep: multipli di 16)
+patch_size: 16           # lato della patch ViT: SOLO per il danno `patch` (verificato: config.json HF di dinov3-vitb16); evaluate lo confronta col modello caricato
 pooling: natural         # natural(CLS) | mean | gem
 gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
 extraction_layer: -1     # layer da cui leggere i token: -1 ultimo, -2 penultimo, ...

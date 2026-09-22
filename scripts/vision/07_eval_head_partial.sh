@@ -29,7 +29,13 @@ source /work/cvcs2026/ai_interior_design/CVCS-AI-Assisted-ID/scripts/vision/_com
 cd "$PROJECT_DIR"
 mkdir -p logs
 
-echo "=== $(date) | EVAL PARTIAL head (head + head+whiten) | modelli: $(select_models "$1") ==="
+# Split delle query. Default `valid`: il vincolo DURO 1 dice che il test non
+# sceglie nulla, e fino al 24 ago questi script avevano `test` cablato senza
+# override (rilievo A1). Per rileggere il test va chiesto esplicitamente:
+#   EVAL_SPLIT=test sbatch <questo script> [modello] [risoluzione]
+EVAL_SPLIT="${EVAL_SPLIT:-valid}"
+
+echo "=== $(date) | EVAL PARTIAL head (head + head+whiten) | modelli: $(select_models "$1") | split: $EVAL_SPLIT ==="
 nvidia-smi
 
 for MODEL in $(select_models "$1"); do
@@ -37,7 +43,7 @@ for MODEL in $(select_models "$1"); do
     for RES in $(select_resolutions "$MODEL" "${2:-}"); do
       VAR=$(variant_for "$POOL" "$RES")
       RFLAGS=$(res_flags "$RES")
-      COMMON="model.name=$MODEL model.variant=$VAR model.kwargs.pooling=$POOL $RFLAGS partial.enabled=true head.enabled=true eval.split=test"
+      COMMON="model.name=$MODEL model.variant=$VAR model.kwargs.pooling=$POOL $RFLAGS partial.enabled=true head.enabled=true eval.split=$EVAL_SPLIT"
       echo ""
       echo "########  EVAL PARTIAL: $(label_for "$MODEL" "$POOL" "$RES") / head  ########"
       python -m src.vision.evaluation.evaluate $COMMON whitening.enabled=false

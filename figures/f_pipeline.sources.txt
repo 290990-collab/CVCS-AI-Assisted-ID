@@ -1,0 +1,14 @@
+# f_pipeline — figura del report
+data:     2026-09-18 17:00
+comando:  python -m src.figures.pipeline
+
+numeri della figura:
+  vision 768-d + graph 128-d → fusione 896-d
+  α = 0.6 (da results/fusion/select_valid.json)
+  gallery condivisa: 67405 piante
+
+file letti:
+  results/queryvec/valid/vision_pespatial_gem_whiten-train_partial-nowalls-random-f0.5_valid.npz
+  results/queryvec/valid/graph_gat_asymrob_partial-random-f0.5_valid.npz
+  results/shared_gallery.json
+  results/fusion/select_valid.json

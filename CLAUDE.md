@@ -9,7 +9,8 @@ che finisce in un report.
 
 Retrieval di planimetrie (floor plan) su **RPLAN**, in due rami paralleli che
 condividono metriche e ground truth, poi **late fusion**. Fase 2 (generazione
-constraint-aware) non iniziata.
+constraint-aware) fuori da questo report. ⚠️ **Dal 10 set il progetto è in
+CHIUSURA**: punto di arresto e tagli in `.claude/shared/roadmap.md`.
 
 | Path | Ruolo |
 |---|---|
@@ -18,7 +19,7 @@ constraint-aware) non iniziata.
 | `src/vision/` | ramo vision: encoder frozen → (head) → whitening → FAISS |
 | `src/graph/` | ramo graph: `.mat` → grafo PyG → GNN allenata (InfoNCE) → FAISS |
 | `configs/` | YAML: `vision_retrieval.yaml` + `vision_models/*`, `graph_retrieval.yaml` + `graph_models/*` |
-| `scripts/{vision,graph}/` | job sbatch numerati nell'ordine di esecuzione |
+| `scripts/{vision,graph,evaluation}/` | job sbatch numerati nell'ordine di esecuzione (`evaluation/` = protocollo di misura, per-query) |
 | `tests/` | smoke test CPU (⚠️ `tests/test_vision_retrieval.py` è **l'entrypoint di indicizzazione**, non un test) |
 
 **Vincoli DURI** — violarli invalida i risultati, non solo il codice:
@@ -26,20 +27,27 @@ constraint-aware) non iniziata.
 1. **Il test set non sceglie nulla**: iperparametri, checkpoint e varianti si
    scelgono sul `valid`; il `test` si tocca solo per il numero finale.
    Statistiche di normalizzazione dal **solo train**.
-2. **Gallery = intero `snapshot_train/`, sempre**: non si splitta il corpus di
-   ricerca, lo split restringe le **query**. ⚠️ `snapshot_train/` **mescola** i
-   tre split ufficiali nonostante il nome.
+2. **Gallery = l'intero corpus condiviso, sempre**: non si splitta il corpus di
+   ricerca, lo split restringe le **query**. Dal 10 set è
+   `results/shared_gallery.json` (= `snapshot_train/` meno le 48 PNG senza
+   `.mat`), in entrambi i YAML. ⚠️ `snapshot_train/` **mescola** i tre split
+   ufficiali nonostante il nome.
 3. **Confronti appaiati**: stesse query, stessa gallery, stesse esclusioni.
-   Verifica pratica: le esclusioni singleton stampate nei log devono coincidere.
+   Verifica pratica: stesso `gallery_sha1` nel meta dei per-query; le
+   esclusioni singleton stampate nei log devono coincidere.
 4. **Contratti fra i rami**: `embeddings.npy` + `names.json` allineati per riga
-   (interfaccia della late fusion, ⚠️ inner join sui nomi: graph 67.405 vs
-   vision 67.453); `BaseVisionEncoder`/`BaseGraphEncoder`; forma
+   (interfaccia della late fusion; con la gallery condivisa i due rami hanno le
+   stesse righe nello stesso ordine); `BaseVisionEncoder`/`BaseGraphEncoder`; forma
    dell'architettura ↔ checkpoint (un flag che cambia `proj` — es. `raw_skip` —
    rende il checkpoint non ricaricabile).
-5. **Circolarità dichiarata**: le label di composizione/topologia derivano da
-   `rType`/`rEdge`, che sono **l'input** del ramo graph → su quegli assi il
-   graph è un upper bound; l'unico asse alla pari è la **geometria**. Questione
-   aperta: `.claude/shared/architecture.md`.
+5. **Circolarità dichiarata — nessun asse è esente, nessun ramo è pulito**
+   (misurato il 24 ago, `status.md §21`). Le label di composizione/topologia
+   derivano da `rType`/`rEdge`, l'input del graph; e anche la GT **geometrica**
+   lo è (`gtBox[-1]` = unione esatta dei `gtBoxNew`, 100% su 24.218 piante).
+   Dall'altro lato il **vision legge `rType` dal colore** delle PNG, ma
+   compresso: 13 tipi → **6 colori**. Il confronto non è «simbolico vs visivo»,
+   è **fine vs grosso sullo stesso input**. Questione aperta (come presentarlo):
+   `.claude/shared/architecture.md`.
 
 ## Comandi
 
@@ -54,6 +62,8 @@ python -m tests.test_vision_retrieval    # indicizzazione vision (nome storico)
 - **Run pesanti (le lancia l'UTENTE):** `sbatch scripts/{vision,graph}/NN_*.sh`.
   Gli agenti **non** lanciano sbatch e non aspettano job: preparano il comando,
   l'utente lo esegue e incolla l'output. Dipendenze in `COMANDI.md`.
+  Eccezione: autorizzazione **esplicita** dell'utente per quella richiesta (es.
+  un `/loop`) → il main agent lancia via `sbatch` e traccia gli id nel TODO.
 
 ## Orchestrazione: il main agent coordina
 
@@ -151,42 +161,38 @@ cross-ramo e stile: `.claude/shared/conventions.md`.
 
 ## Stato attuale (Current Summary Update)
 
-**Fase 1 — Retrieval.** Entrambi i rami implementati, allenati e valutati sulle
-stesse 2000 query del test split, gallery intera. (nDCG@10 =
-composizione/topologia/geometria.)
+**Fase 1 — Retrieval, CHIUSA il 18 set** (`.claude/shared/roadmap.md`): numeri finali letti, figure
+fatte, **il testo del report lo scrivono gli utenti** — da qui numeri, figure e verifiche a richiesta.
+Cifre: `status.md`, da leggere prima di citarne una, **sempre dicendo con quale metro**.
 
-- **Vision** (encoder frozen × pooling × trasformazione; registry a **8**, tutti
-  estratti — ma i 6 `.npz` valid di `pespatial` sono **da leggere**, `§19`):
-  miglior geometria del progetto **0.948**
-  (`ijepa/gem/whiten`); dal 13 ago il migliore sugli altri due assi è
-  **`tipsv2/gem448/whiten`** (valid: 0.843/0.690/0.935, +0.030 di topologia sul
-  precedente candidato, `status.md §18`); sul **partial self-recovery** la head è un guadagno grande
-  e crescente col masking (dinov3 a f=0.75: MRR 0.205 → 0.668). ⚠️ «sul full la
-  head non aiuta» **non è difendibile**: quella head è selezionata sulla val-loss
-  InfoNCE, il criterio che il ramo graph ha smentito.
-- **Graph** (GCN/GAT/SAGE, InfoNCE): migliore **`gcn/tau02` = 0.972/0.826/0.940**
-  contro baseline training-free `hist` 1.000\*/0.643/0.894 (\*oracolo per
-  costruzione). Ordine stabile **GCN > SAGE > GAT**.
-- ⚠️ **Come si leggono questi numeri — floor misurato (31 lug)**: un ranking
-  casuale prende già **0.739/0.466/0.869**. Quindi lo spazio utile della
-  geometria è **0.131** e il margine 0.002 fra i rami ne è l'**1.5%**; l'nDCG@10
-  da solo è la metrica **meno** informativa (Recall/mAP dello stesso null
-  partono da 0.085 e 0.035). La **topologia** è l'asse che discrimina: il graph
-  ne usa il 67% contro il 33% di `hist`. Dettagli in `retrieval.md`.
-- **Tre scoperte che guidano il lavoro**: (a) la **val-loss InfoNCE non predice
-  il retrieval** e ne inverte la classifica → il checkpoint si sceglie con la
-  `RetrievalProbe` sul valid; (b) **gran parte del punteggio viene
-  dall'architettura, non dal training**: il training compra la **topologia**;
-  (c) **τ=0.3 e "allenare di più" sono stati smentiti dalla misura**.
-- **Stato del metodo**: dei rilievi dell'audit **11 su 13 riconfermati** (A5
-  ridimensionato — la GT geometrica è solo in parte ricostruibile dal grafo; B6
-  aperto). Strumenti pronti: floor, per-query `perquery/1`, test appaiato,
-  sensibilità ai pesi. **Nessun fix ancora applicato**: è la fase B.
-- **Prossimi**: run per-query dei due rami → test appaiato; poi late fusion
-  (D.0), partial sul graph, decisione sulla circolarità, report per i prof.
+- **Metro (§38)**: «migliore» = **più robusto** = media delle AUC self-recovery su stanze tolte coi
+  muri (`nowalls`), crop, patch (`robustness_auc --robust`); costo sul full accanto. Il masking a
+  stanze storico (§23-§24) non conta più. Numeri finali sul **protocollo B** (`experiments.md`).
+- **Vision (§35-§48)**: il render storico lasciava i muri interni → la robustezza era quasi tutta
+  artefatto (+0.336 a f=0.5, §54). La head **impara solo il danno che vede** (H1 §37, H3 §48).
+- **Config DEFINITIVE (16 set)**: vision **`pespatial/gem/whiten`** frozen (§44) · graph
+  **`gat/asymrob`** (§47, epoca scelta sulla robustezza). **Late fusion AIUTA** (§49, valid): α*=0.6,
+  AUC 0.630 vs graph 0.456 / vision 0.392, sopra l'oracolo. Scala dei guadagni (§50.1, §51.1):
+  +0.034 stesso modello · +0.098 modelli diversi stessa info · +0.174 vision+graph ⇒
+  **complementarità**, ma ~56% è diversità di modello.
+- ✅ **TEST letto una volta (18 set, §53)**: fusione **0.6424** vs graph 0.4700 / vision 0.3965
+  (+0.1725 [+0.1625, +0.1826]), oracolo 0.5693; vision a tre danni 0.5210; pianta intera
+  0.851/0.686/0.954. Il valid generalizza.
+- **Figure (§54)**: due colonne, moduli in `src/figures/`, output in `figures/` con la provenienza
+  accanto; **7 su 8 fatte senza nessun job**. Resta la sola F4 (csv incompleto), decisione degli utenti.
+- **Graph**: scegliere il checkpoint sul full era **erratico** (epoca 6-33) e spiegava il crollo sotto
+  masking (§30) e la topologia «venduta» (§30.8); sulla robustezza costa ~0.017 di composizione (§47).
+  ⚠️ Due training identici differiscono di ~0.04 AUC; l'ordine gat ≫ sage/gcn viene dalla regola
+  vecchia (non riverificato).
+- ⚠️ **Claim caduti — mai senza qualifica**: «il vision è robusto al masking», «la head vision aiuta
+  sotto masking» (solo sul danno di training, §37, §48), «il vision batte il graph in geometria» (§22),
+  «un asse o un ramo è pulito» (§21), «sul full la head non aiuta» (metro, §24); «la val-loss non
+  predice il retrieval» e «allenare di più non serve» valgono per il **graph**, non per la head (§30).
+- ⚠️ **Scala**: il ranking casuale prende già 0.739/0.466/0.869 di nDCG@10 → si normalizza sul null
+  (§20); la **topologia** discrimina (classi mediana 19 vs 5007 della composizione, §54), f=0.0 no.
+- **Aperto per il testo**: la **circolarità** — come presentarla (domanda n.1).
 
-Numeri e cronologia: **`.claude/shared/status.md`** (§9 riconferme, §10 floor).
-Diagnosi metodologica completa: **`current_state.md`**.
+Audit del 30 lug (13 rilievi) e loro stato oggi: **`current_state.md`** (tabella in testa).
 
 ## Stato che si aggiorna da solo
 
@@ -224,7 +230,8 @@ indovinare. Regola d'oro: **si aggiunge o si spunta, non si riscrive**.
 - **NON usare git** (nemmeno in lettura): il "diff" da rivedere è la lista di
   file che il coordinatore dichiara modificati.
 - **Non operare fuori da `/work/cvcs2026/ai_interior_design/`.**
-- **Non lanciare sbatch, GPU o job lunghi**: li lancia l'utente. Un agente che
+- **Non lanciare sbatch, GPU o job lunghi**: li lancia l'utente (unica
+  eccezione: autorizzazione esplicita, vedi *Comandi*). Un agente che
   "prova a vedere se gira" brucia ore di coda.
 - **Mai rilanciare un esperimento** per riavere un numero già presente in un
   log, in un `training_summary.json` o in `vision_pipline.xlsx`.
@@ -256,7 +263,7 @@ per aprirli: i path si risolvono dalla root del repo, non da `.claude/`).
 | `dataset.md` | RPLAN: path, `.mat`, split, formati, trappole |
 | `experiments.md` | protocollo, ablation, ops sbatch, gotcha operativi |
 | `status.md` | risultati, decisioni, ipotesi smentite |
-| `roadmap.md` | i sei obiettivi in corso, ordinati per dipendenza |
+| `roadmap.md` | **chiusura**: punto di arresto, cosa manca (in ordine), cosa è tagliato |
 | `conventions.md` | convenzioni di codice e documentazione |
 | `testing-guide.md` | cosa è testabile qui (smoke test CPU) |
 | `debugging-playbook.md` | mappa sintomo → sospetti |
@@ -264,8 +271,12 @@ per aprirli: i path si risolvono dalla root del repo, non da `.claude/`).
 
 **Fonte primaria**: la knowledge graph in `graphify-out/` — per domande sul
 progetto si interroga per prima (`/graphify query "..."`, fast path); i `.md`
-si leggono quando il grafo ci punta o serve il dettaglio esatto. Rigenerata il
-30 lug 2026 (indicizza `.claude/shared/`); ⚠️ **non** contiene `current_state.md`.
+si leggono quando il grafo ci punta o serve il dettaglio esatto. Aggiornata il
+**25 ago 2026** (1.416 nodi, 2.900 archi, 104 community): indicizza
+`.claude/shared/`, **`current_state.md`** e la fase A (§20-§24, criterio A.5).
+⚠️ **Non** copre ciò che è venuto dopo il 25 ago (`status.md §25-§31`, protocollo
+B, chiusura): per quello valgono i `.md`. ⚠️ **Non** contiene i PDF di
+`papers/`: `.gitignore` esclude `papers/` e `*.pdf` e graphify ora lo rispetta.
 
 ## Lingua e stile
 
@@ -275,6 +286,11 @@ prima esperienza di computer vision ma con le basi di ML/CV acquisite: si danno
 per noti training/loss/embedding, si spiega sempre il **perché** di una scelta e
 si introduce ogni termine nuovo alla prima comparsa. Meglio intuizioni ed esempi
 concreti del formalismo pesante.
+
+**Risposte all'utente: brevi, semplici, action-oriented** (richiesta esplicita,
+10 set). Prima cosa fare, poi il perché in una frase. **Niente sigle interne**
+(B.6, T2, §30, «protocollo B»…) senza dire a parole cosa sono; niente elenchi di
+difetti né tono da audit. Le sigle servono nei file di contesto, non nelle risposte.
 
 ## File Exclusions
 
