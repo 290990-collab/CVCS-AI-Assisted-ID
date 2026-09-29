@@ -3188,3 +3188,58 @@ rifacibile.
 
 Resta **solo F4** (scatter loss↔retrieval) di `PAPER.md §10.b`: dipende da
 `notebooks/vision/vision_encoders_results.csv`, incompleto (11 serie su 15 attese).
+
+## 55. RI-VERIFICA DEI NUMERI FINALI + EXPORT CSV (28 set) — nessun numero nuovo, uno confermato
+
+Richiesta: controllare che i risultati siano corretti e coerenti prima di mostrarli ai dottorandi, e
+riversarli in CSV per i notebook. Tutto **ricalcolato dai per-query in sessione**, non ricopiato.
+
+**Tutto riprodotto alla quarta cifra** rispetto a §53: robustezza test fusione **0.6424** · graph
+**0.4700** · vision **0.3965** · baseline `hist` **0.0013**; per f=0.25/0.5/0.75 e nDCG@10 per asse
+sulla pianta intera identici; vision a tre danni R **0.5210** (nowalls 0.3965 · crop 0.6543 · patch
+0.5123). Le medie coincidono con `select_test.json`/`select_valid.json` entro 1e-6 (guardia nel codice).
+
+**Fatto nuovo — rumore di VALUTAZIONE, distinto dal rumore di training.** Due esecuzioni della *stessa*
+config graph sullo *stesso* checkpoint (`graph_test_B` vs `fusion_branches_test`, unica differenza
+`--query-vectors-out`) danno AUC **0.470368 vs 0.469978**: Δ **+0.00039**, **110/2000** query con AUC
+diversa, max |Δ| 0.444 su singola query. È ~440× più piccolo del +0.1725 della fusione, quindi non tocca
+nessuna conclusione, ma **va distinto** dal ~0.04 fra *training* identici (§47): quello è varianza di
+ottimizzazione, questo è tie-breaking del ranking. I numeri del report usano la run appaiata
+(`fusion_test` α=0 = `fusion_branches_test`, 0 differenze), che è quella giusta.
+
+**Denominatore riletto (§20) sul test**: null `random` nDCG@10 **0.7403 / 0.4663 / 0.8700** (C/T/G),
+stessa gallery `0c24cfc05e18`, stesse 2000 query nello stesso ordine. Normalizzando, la fusione copre
+**0.427 / 0.411 / 0.647** dello spazio utile — la pianta intera è molto meno «quasi risolta» di quanto
+suggeriscano 0.85/0.69/0.95. ⚠️ Il null del *vision* (`random_vision_test_seed0`) è su una gallery
+vecchia (67.453, sha1 diverso): **non appaiato**, escluso.
+
+**Export**: `src/evaluation/export_csv.py` (`python -m src.evaluation.export_csv`) → **13 CSV** in
+`results/csv/` + `_sources.txt` (file letti, comando, semantica delle colonne). Riaggregati dai
+per-query a ogni esecuzione, con tre guardie che fermano l'export: media ≠ json pubblicato,
+`num_relevant` diverso fra sistemi, query non appaiate. `tests/test_export_csv.py`, 10 test →
+**326 passed**.
+
+## 56. NOTEBOOK DI ANALISI + DUE CORREZIONI AI CSV (28 set) — nessun numero del report cambia
+
+`results/csv/analisi_risultati.ipynb` riorganizzato (richiesta degli utenti: «fai come faresti»).
+Ordine: risultato → significatività → oracolo → curva del danno → scala dei guadagni → tre danni →
+pianta intera **col denominatore** → per-query → rumore della misura. Eseguito end-to-end, 7 figure.
+Palette Okabe-Ito delle figure del report, validata: le tre serie vere passano CVD e normal-vision;
+il grigio della baseline è de-enfasi (linea punteggiata + marker ×), non uno slot categoriale.
+
+**Correzione 1 — precisione dei per-query.** I file `*_perquery_*.csv` erano arrotondati a 6 cifre.
+Centinaia di query **pareggiano esattamente** fra due sistemi (le AUC sono medie di reciproci di
+rango): con valori arrotondati `fusione > oracolo` contava **1394** invece di **1218**, +176 falsi
+positivi. Anche 12 cifre non bastano (le differenze spurie sono ~5e-13). Ora si scrive il float senza
+arrotondare, e il conteggio riproduce §53 esatto. Le tabelle riassuntive restano a 6 cifre.
+⚠️ Chiunque abbia già fatto conteggi con `>` su una copia vecchia dei per-query li rifaccia.
+
+**Correzione 2 — f=0.0 nei `*_damage_curve.csv`**, con colonna `in_auc` (0/1): mancava il *tetto dei
+dati* (0.9701 vision / 0.9768 graph / 0.9789 fusione, = §54 F7) e la curva non era disegnabile dai CSV
+senza tornare agli `.npz`. Non entra nell'AUC, come da §23.
+
+**Fatto riletto in sessione**: la baseline `hist` a f=0.0 fa **0.0259** — anche senza alcun danno
+ritrova la pianta esatta nel 2,6% dei casi, perché migliaia di piante condividono lo stesso istogramma
+di tipi di stanza. Conferma che il suo 0.9998 di composizione è tautologia, non prestazione.
+
+`tests/test_export_csv.py` sale a 11 test (aggiunto: i pareggi devono restare pareggi nel CSV).

@@ -1,9 +1,9 @@
 # TODO — stato operativo vivo
 
-**Ultimo aggiornamento:** 18 set 2026 — **test letto** (§53, fusione 0.6424 vs graph 0.4700 / vision
-0.3965) e **figure 7 su 8** (§54). Config definitive: vision `pespatial/gem/whiten` (§44) · graph
-`gat/asymrob` (§47). ⚠️ **Il testo del report lo scrivono gli utenti** (decisione 18 set): dalla nostra
-parte non resta lavoro obbligato, solo le voci in *Bloccato*.
+**Ultimo aggiornamento:** 28 set 2026 — numeri **ri-verificati** e riversati in **13 CSV** (§55), più
+il **notebook di analisi** riorganizzato e due correzioni ai CSV (§56). Nessun numero del report cambia.
+Config definitive: vision `pespatial/gem/whiten` (§44) · graph `gat/asymrob` (§47). ⚠️ **Il testo del
+report lo scrivono gli utenti** (18 set): non resta lavoro obbligato, solo le voci in *Bloccato*.
 
 > **Primo** file a inizio sessione, **ultimo** a fine task: dice dove siamo
 > *adesso*. Regole in `CLAUDE.md § Stato che si aggiorna da solo`. Tetto ~60
@@ -27,11 +27,14 @@ quadro nuovo da §35. **Fase 1 chiusa**: restano solo voci opzionali.
 - [x] **Test finale (§52 pre-reg, §53 risultati, letto una volta)**: controlli PASS · fusione
       **0.6424** vs graph 0.4700 / vision 0.3965 (+0.1725 [+0.1625, +0.1826]), oracolo 0.5693 ·
       vision 3 danni 0.5210 · previsioni 3/4 (graph +0.0138 fuori ±0.01, in meglio).
-- [x] **Figure (§54, `PAPER.md §10.b`)**: stile a **due colonne** in `src/figures/style.py`, output in
-      `figures/` (PDF + PNG + `*.sources.txt`), 19 test nuovi (**316 passed**). Fatte **7 su 8**, tutte
-      **senza job**: F1 teaser · F2 pipeline · F3 tre danni + artefatto dei muri · F5 classi di
-      equivalenza · F6 box delle ablation · F7 danno sul test · F8 AUC vs α. ⚠️ F1 e F3 hanno
-      un'inquadratura diversa dal piano (dichiarato in `PAPER.md §10.b`). **F4** → *Bloccato*.
+- [x] **Figure (§54, `PAPER.md §10.b`)**: stile a **due colonne** (`src/figures/style.py`), output in
+      `figures/` (PDF + PNG + provenienza). Fatte **7 su 8** senza job; F1 e F3 con inquadratura
+      diversa dal piano (dichiarato). **F4** → *Bloccato*.
+- [x] **Ri-verifica + CSV + notebook (28 set, §55-§56)**: tutto ricalcolato dai per-query, coincide
+      con §53 · null `random` sul test (0.7403/0.4663/0.8700) · rumore di *valutazione* graph
+      +0.00039 · `src/evaluation/export_csv.py` → 13 CSV in `results/csv/` ·
+      `analisi_risultati.ipynb` riordinato ed eseguito · ⚠️ per-query ora **senza arrotondamento**
+      (i pareggi contavano come vittorie: 1394 vs **1218** sull'oracolo).
 - [ ] **Visualizzazioni** dinov3/gem raw+whiten (`106381-82`): esito mai controllato. Non serve più
       a nessuna figura (F1 è fatta senza job): si guarda solo se qualcuno le vuole.
 
@@ -42,8 +45,8 @@ quadro nuovo da §35. **Fase 1 chiusa**: restano solo voci opzionali.
 
 ## Prossimo passo
 
-**Nulla di obbligato da questa parte**: numeri, figure e documentazione sono allineati; il testo del
-report è in mano agli utenti (18 set). Opzionali, solo se lo chiedono: F4, la testa congiunta
+**Nulla di obbligato da questa parte**: numeri verificati, figure e documentazione allineate, CSV in
+`results/csv/` pronti per i notebook. Opzionali, solo se lo chiedono: F4, la testa congiunta
 (seconda tornata pre-registrata) e l'aggiornamento della knowledge graph.
 
 ## Bloccato / in attesa di decisione
