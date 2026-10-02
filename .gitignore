@@ -68,3 +68,8 @@ paper-skills/
 # OS
 # =========================
 .DS_Store
+
+# =========================
+# Claude Code (note e config locali)
+# =========================
+.claude/
