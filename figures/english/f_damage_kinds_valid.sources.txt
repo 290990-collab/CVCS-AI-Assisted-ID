@@ -1,0 +1,31 @@
+# f_damage_kinds_valid — figura del report
+data:     2026-10-01 11:17
+comando:  python -m src.figures.damage_kinds_valid --lang en --out-dir figures/english
+
+numeri della figura:
+  split: valid
+  pannello sinistro: vision_pespatial_gem_whiten-train — 2000 query
+  pannello destro:  vision_dinov3_natural_whiten-train — 2000 query
+  tre danni nowalls-random  AUC 0.3920 | f=0.25: 0.8181 [0.8027, 0.8335]  f=0.5: 0.2971 [0.2790, 0.3154]  f=0.75: 0.0609 [0.0517, 0.0705] | area f=0.25: 0.292  area f=0.5: 0.522  area f=0.75: 0.711
+  tre danni crop            AUC 0.6605 | f=0.25: 0.9600 [0.9533, 0.9666]  f=0.5: 0.8312 [0.8168, 0.8454]  f=0.75: 0.1904 [0.1756, 0.2055] | area f=0.25: 0.248  area f=0.5: 0.498  area f=0.75: 0.748
+  tre danni patch           AUC 0.5209 | f=0.25: 0.9623 [0.9558, 0.9686]  f=0.5: 0.5856 [0.5665, 0.6044]  f=0.75: 0.0150 [0.0109, 0.0194] | area f=0.25: 0.250  area f=0.5: 0.500  area f=0.75: 0.750
+  muri      random          AUC 0.5357 | f=0.25: 0.8591 [0.8455, 0.8722]  f=0.5: 0.5281 [0.5090, 0.5477]  f=0.75: 0.2199 [0.2041, 0.2365] | area f=0.25: 0.264  area f=0.5: 0.478  area f=0.75: 0.658
+  muri      nowalls-random  AUC 0.3040 | f=0.25: 0.6856 [0.6670, 0.7043]  f=0.5: 0.1920 [0.1764, 0.2080]  f=0.75: 0.0345 [0.0279, 0.0417] | area f=0.25: 0.292  area f=0.5: 0.522  area f=0.75: 0.711
+  R (media dei tre danni) = 0.5245
+
+file letti:
+  results/perquery/vision_damage_valid_B/vision_pespatial_gem_whiten-train_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/vision_damage_valid_B/vision_pespatial_gem_whiten-train_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/vision_damage_valid_B/vision_pespatial_gem_whiten-train_partial-nowalls-random-f0.75_valid.npz
+  results/perquery/vision_damage_valid_B/vision_pespatial_gem_whiten-train_partial-crop-f0.25_valid.npz
+  results/perquery/vision_damage_valid_B/vision_pespatial_gem_whiten-train_partial-crop-f0.5_valid.npz
+  results/perquery/vision_damage_valid_B/vision_pespatial_gem_whiten-train_partial-crop-f0.75_valid.npz
+  results/perquery/vision_damage_valid_B/vision_pespatial_gem_whiten-train_partial-patch-f0.25_valid.npz
+  results/perquery/vision_damage_valid_B/vision_pespatial_gem_whiten-train_partial-patch-f0.5_valid.npz
+  results/perquery/vision_damage_valid_B/vision_pespatial_gem_whiten-train_partial-patch-f0.75_valid.npz
+  results/perquery/vision_damage_valid_B/vision_dinov3_natural_whiten-train_partial-random-f0.25_valid.npz
+  results/perquery/vision_damage_valid_B/vision_dinov3_natural_whiten-train_partial-random-f0.5_valid.npz
+  results/perquery/vision_damage_valid_B/vision_dinov3_natural_whiten-train_partial-random-f0.75_valid.npz
+  results/perquery/vision_damage_valid_B/vision_dinov3_natural_whiten-train_partial-nowalls-random-f0.25_valid.npz
+  results/perquery/vision_damage_valid_B/vision_dinov3_natural_whiten-train_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/vision_damage_valid_B/vision_dinov3_natural_whiten-train_partial-nowalls-random-f0.75_valid.npz

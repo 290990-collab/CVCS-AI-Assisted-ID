@@ -37,6 +37,7 @@ papers/
 graphify-out/
 wandb/
 notebooks/
+paper-skills/
 
 # =========================
 # HEAVY FILES (safety net, anywhere in the tree)

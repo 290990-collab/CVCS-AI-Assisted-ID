@@ -3188,3 +3188,201 @@ rifacibile.
 
 Resta **solo F4** (scatter loss↔retrieval) di `PAPER.md §10.b`: dipende da
 `notebooks/vision/vision_encoders_results.csv`, incompleto (11 serie su 15 attese).
+
+## 55. RI-VERIFICA DEI NUMERI FINALI + EXPORT CSV (28 set) — nessun numero nuovo, uno confermato
+
+Richiesta: controllare che i risultati siano corretti e coerenti prima di mostrarli ai dottorandi, e
+riversarli in CSV per i notebook. Tutto **ricalcolato dai per-query in sessione**, non ricopiato.
+
+**Tutto riprodotto alla quarta cifra** rispetto a §53: robustezza test fusione **0.6424** · graph
+**0.4700** · vision **0.3965** · baseline `hist` **0.0013**; per f=0.25/0.5/0.75 e nDCG@10 per asse
+sulla pianta intera identici; vision a tre danni R **0.5210** (nowalls 0.3965 · crop 0.6543 · patch
+0.5123). Le medie coincidono con `select_test.json`/`select_valid.json` entro 1e-6 (guardia nel codice).
+
+**Fatto nuovo — rumore di VALUTAZIONE, distinto dal rumore di training.** Due esecuzioni della *stessa*
+config graph sullo *stesso* checkpoint (`graph_test_B` vs `fusion_branches_test`, unica differenza
+`--query-vectors-out`) danno AUC **0.470368 vs 0.469978**: Δ **+0.00039**, **110/2000** query con AUC
+diversa, max |Δ| 0.444 su singola query. È ~440× più piccolo del +0.1725 della fusione, quindi non tocca
+nessuna conclusione, ma **va distinto** dal ~0.04 fra *training* identici (§47): quello è varianza di
+ottimizzazione, questo è tie-breaking del ranking. I numeri del report usano la run appaiata
+(`fusion_test` α=0 = `fusion_branches_test`, 0 differenze), che è quella giusta.
+
+**Denominatore riletto (§20) sul test**: null `random` nDCG@10 **0.7403 / 0.4663 / 0.8700** (C/T/G),
+stessa gallery `0c24cfc05e18`, stesse 2000 query nello stesso ordine. Normalizzando, la fusione copre
+**0.427 / 0.411 / 0.647** dello spazio utile — la pianta intera è molto meno «quasi risolta» di quanto
+suggeriscano 0.85/0.69/0.95. ⚠️ Il null del *vision* (`random_vision_test_seed0`) è su una gallery
+vecchia (67.453, sha1 diverso): **non appaiato**, escluso.
+
+**Export**: `src/evaluation/export_csv.py` (`python -m src.evaluation.export_csv`) → **13 CSV** in
+`results/csv/` + `_sources.txt` (file letti, comando, semantica delle colonne). Riaggregati dai
+per-query a ogni esecuzione, con tre guardie che fermano l'export: media ≠ json pubblicato,
+`num_relevant` diverso fra sistemi, query non appaiate. `tests/test_export_csv.py`, 10 test →
+**326 passed**.
+
+## 56. NOTEBOOK DI ANALISI + DUE CORREZIONI AI CSV (28 set) — nessun numero del report cambia
+
+`results/csv/analisi_risultati.ipynb` riorganizzato (richiesta degli utenti: «fai come faresti»).
+Ordine: risultato → significatività → oracolo → curva del danno → scala dei guadagni → tre danni →
+pianta intera **col denominatore** → per-query → rumore della misura. Eseguito end-to-end, 7 figure.
+Palette Okabe-Ito delle figure del report, validata: le tre serie vere passano CVD e normal-vision;
+il grigio della baseline è de-enfasi (linea punteggiata + marker ×), non uno slot categoriale.
+
+**Correzione 1 — precisione dei per-query.** I file `*_perquery_*.csv` erano arrotondati a 6 cifre.
+Centinaia di query **pareggiano esattamente** fra due sistemi (le AUC sono medie di reciproci di
+rango): con valori arrotondati `fusione > oracolo` contava **1394** invece di **1218**, +176 falsi
+positivi. Anche 12 cifre non bastano (le differenze spurie sono ~5e-13). Ora si scrive il float senza
+arrotondare, e il conteggio riproduce §53 esatto. Le tabelle riassuntive restano a 6 cifre.
+⚠️ Chiunque abbia già fatto conteggi con `>` su una copia vecchia dei per-query li rifaccia.
+
+**Correzione 2 — f=0.0 nei `*_damage_curve.csv`**, con colonna `in_auc` (0/1): mancava il *tetto dei
+dati* (0.9701 vision / 0.9768 graph / 0.9789 fusione, = §54 F7) e la curva non era disegnabile dai CSV
+senza tornare agli `.npz`. Non entra nell'AUC, come da §23.
+
+**Fatto riletto in sessione**: la baseline `hist` a f=0.0 fa **0.0259** — anche senza alcun danno
+ritrova la pianta esatta nel 2,6% dei casi, perché migliaia di piante condividono lo stesso istogramma
+di tipi di stanza. Conferma che il suo 0.9998 di composizione è tautologia, non prestazione.
+
+`tests/test_export_csv.py` sale a 11 test (aggiunto: i pareggi devono restare pareggi nel CSV).
+
+## 57. PRE-REGISTRAZIONE — repliche multi-seed della pipeline finale (1 ott, PRIMA di ogni job)
+
+**Decisione utente (1 ott)**: fra una replica e l'altra cambiano **training graph e stanze tolte**;
+le repliche si valutano su **valid e test**, ricetta fissata qui. Il test non sceglie nulla.
+
+**Repliche**: 0 = la storica (§44, §47, §49, §53, invariata) + **S ∈ {100042, 200042, 300042}**.
+Per ogni S: training `gat/asymrob_s<S>` (`--seed S`: stream di augment/coppie; init e ordine dei
+batch **non** seedati → repliche non bit-riproducibili) · danno `partial.seed=S` nel vision
+(nowalls_random + crop + patch) ≡ `--partial-seed S` nel graph (stesse stanze) · **stesse 2000 query**
+(seed 42) e stessa gallery condivisa → repliche appaiate sulle query. Sonda di robustezza del training
+invariata. `asymrobrep` **non** conta come replica (rivalutarla riscriverebbe artefatti pinnati in §50).
+Output solo sotto `results/{perquery,queryvec,fusion}/seeds/s<S>/`.
+
+**Regole**: α*_S scelto sul **valid** con la regola di §49 invariata; test con α*_S. Controlli C1/C2/C3
+duri, C5 solo limite basso (deroga §49.1 estesa), C4 non applicabile (nessuno storico). Replica fallita
+per infrastruttura → rilancio con lo stesso S; replica completata **mai scartata**; best epoch al tetto
+→ dichiarato, nessun rilancio.
+
+**Riporto**: tabella per replica (AUC fusione, graph = α 0, vision = α 1, R vision, α*, best epoch) +
+media ± sd (ddof=1) e min–max, con n=4 e n=3 (la replica 0 è ottimista sul valid: config e α scelti lì).
+Numero principale = test, n=4. Il CI bootstrap per replica (rumore delle query) e la sd fra repliche
+non si sommano. Su graph e fusione, training e danno restano confusi (dichiarato).
+Strumento: `python -m src.evaluation.seed_summary` → `results/fusion/seeds/summary.json`.
+
+**Previsioni** (falsificabili, valgono per ciascuna replica nuova, su valid e test):
+- P1: sd fra repliche vision < sd graph (vision frozen: cambia solo il danno).
+- P2: sd fusione < sd graph.
+- P3: la fusione aiuta in **ogni** replica (verdetto di §49: α*∉{0,1}, CI del guadagno > 0); se ne
+  fallisce anche una → falsificata, si riporta k/3.
+- P4: α*_S ∈ {0.5, 0.6, 0.7}.
+- P5: l'ordine fusione > graph > vision regge in ogni replica.
+
+### 57.1 1 ott — FASE 1-2 (job 127078-92, 15/15 COMPLETED)
+Best epoch (sonda di robustezza, tetto 300): s100042 **300** · s200042 293 · s300042 **300** → al tetto, dichiarato (§57).
+Check valid (wrapper 15): s100042 e s200042 **PASS** (C1/C2/C3 esatti, C5 solo limite basso) → select valid: **α*=0.6
+in entrambe**, verdetto «la fusione aiuta». s300042 **C3 FAIL** a f=0.75: α=0 vs graph 11/2000 self_rr diversi, salto max 7
+(soglia ≤6, ≤2), Δ AUC +0.00020 [−0.00082, +0.00118]. Stop: diagnosi con la regola di contingenza di §50 (pareggi esatti
+di similarità?) prima di select/test di s300042. Numeri per replica: in `seed_summary` a fine test, non qui.
+
+### 57.2 1 ott — C3 di s300042: pareggi float32, **accettato dall'utente** (dichiarato)
+Diagnosi (CPU, qvec + `embeddings.npy` della replica): le 11 query diverse a f=0.75 **non** sono pareggi esatti in float64
+(0/11) ma **11/11 stanno entro ±1 ulp float32** (~6e-8) della similarità dell'originale (gap minimo 2.7e-10…3.7e-8). Meccanismo:
+FAISS calcola in float32; il vettore fuso (896-d con metà a zero) somma in ordine diverso dal 128-d del ramo → i quasi-pareggi
+si invertono. Non è un difetto di pipeline (Δ AUC +0.00020, CI ∋ 0). Quasi-pareggi entro 1 ulp a f=0.75: 131 / 133 / 141 query
+su 2000 (s100042/s200042/s300042) → s300042 non è anomala, le altre due hanno solo avuto arrotondamenti concordi.
+**Decisione utente (1 ott, prima di select/test)**: la regola di §50 («pareggi esatti») si estende ai pareggi alla precisione
+float32 del sistema. Meccanismo: `results/fusion/seeds/s300042/c3_waiver_valid.json` + `15_seed_fusion_select.sh` (il waiver
+è letto solo se esiste, e stampato). Select valid s300042: α*=0.6, «la fusione aiuta». **α*=0.6 in tutte e tre le repliche**
+(P4 ✅ sul valid). ⚠️ Lo stesso può ripetersi sul test: stessa diagnosi, stesso trattamento.
+
+### 57.3 1 ott — RISULTATI delle repliche (job 127783-88 test; `results/fusion/seeds/summary.json`)
+Test: controlli **tutti PASS esatti** nelle 3 repliche (C3 0/2000 a ogni f, nessun waiver). α* fisso dal valid = 0.6.
+
+| test, AUC stanze tolte | fusione | graph | vision | R vision |
+|---|---|---|---|---|
+| replica 0 (storica, §53) | 0.6424 | 0.4700 | 0.3965 | 0.5210 |
+| s100042 / s200042 / s300042 | 0.6426 / 0.6392 / 0.6360 | 0.4659 / 0.4742 / 0.4687 | 0.3914 / 0.3928 / 0.3856 | 0.5225 / 0.5208 / 0.5217 |
+| **media ± sd (n=4)** | **0.6401 ± 0.0031** | **0.4697 ± 0.0035** | **0.3916 ± 0.0045** | **0.5215 ± 0.0008** |
+| min–max (n=4) | 0.636–0.643 | 0.466–0.474 | 0.386–0.396 | 0.521–0.522 |
+
+Valid n=4: fusione 0.6397 ± 0.0066 · graph 0.4661 ± 0.0069 · vision 0.3907 ± 0.0015 · R 0.5246 ± 0.0013 (la replica 0 è la più
+bassa su fusione e graph: 0.6301 / 0.4562 — nessun ottimismo da selezione visibile). Guadagno della fusione sul test per replica:
++0.1767 [+0.1670, +0.1864] · +0.1650 [+0.1550, +0.1751] · +0.1674 [+0.1578, +0.1766] (storico +0.1725).
+
+**Previsioni §57**: P2 ✅ (sd fusione < sd graph su valid e test, n=4 e n=3; margine piccolo) · P3 ✅ (la fusione aiuta in 3/3,
+valid e test, CI > 0) · P4 ✅ (α*=0.6 in 3/3) · P5 ✅ (fusione > graph > vision in ogni replica, valid e test) ·
+**P1 ❌ sul test n=4**: sd vision 0.0045 > sd graph 0.0035 (regge sul valid 0.0015 < 0.0069 e sul test n=3 0.0038 < 0.0042) →
+falsificata così come formulata: il campione di stanze tolte pesa sul vision quanto il training sul graph, nel test.
+**Lettura**: il risultato principale è stabile — la sd fra repliche (~0.003) è ~50× più piccola del guadagno della fusione (~0.17);
+il numero storico 0.6424 sta dentro il min–max. Il rumore fra training graph misurato in §47 (~0.04) **non** si ripresenta qui
+(graph test 0.466–0.474): probabilmente §47 confrontava due training con selezione/condizioni diverse — non verificato.
+**Figura (1 ott)**: `figures/{italian,english}/f_damage_test_seeds.*` (`src/figures/damage_test_seeds.py`) = curva del test
+con media sulle 4 repliche e banda ± 1 sd fra repliche (non CI bootstrap); AUC verificate contro `summary.json`; la baseline
+hist è una sola run (nessuna replica). La banda è quasi invisibile: è il messaggio (sd ~0.003-0.007 per livello).
+**Nota (1 ott, sera)**: la gallery graph di una replica **cambia fra valid e test** (09 test riscrive `embeddings.npy`; non
+determinismo GPU): s300042 `gallery_vectors.sha1` valid 624e788f → test ef6bd267. Ogni fusione resta coerente (il qvec pinna
+la sua gallery e 10 controlla lo sha1); ma la diagnosi dei pareggi va fatta **prima** della fase 3. Quella di §57.2 lo era
+(11/11); rifatta dopo sulla gallery del test dà 10/11 → non confrontabile. Ricetta generica + guardia sha1: `COMANDI.md`
+§ «Repliche multi-seed»; `damage_test_seeds` ora trova da sé le repliche finite (`--seeds` per sceglierle).
+
+## 58. PRE-REGISTRAZIONE — SAGE vs GAT a parità di regola di selezione (1 ott, sera, PRIMA dei job)
+
+**Decisione utente (1 ott)**: verificare il caveat Q1 di §47 (ordine gat ≫ sage stabilito con la regola vecchia).
+Piano completo e comandi: `VERIFICA_GRAFI.md §4`. Nessun codice/config modificato, nessun artefatto esistente
+sovrascritto (output solo in `embeddings/graph/sage/asymrob*` e `results/perquery/verifica_grafi/`, verificati assenti).
+
+**Ricetta**: `graph_sage.yaml` invariato (τ=0.3, `aggr: mean`) + variante `asymrob` di 03 (coppie `asym_partial`, sonda di
+robustezza, tetto 300, patience 0, ombra `_selfull`) = identica a `gat/asymrob`. **Repliche**: `sage/asymrob` (seed 42) +
+`sage/asymrob_s{100042,200042,300042}`; danno di valutazione default per la replica 0, `--partial-seed S` per le altre →
+appaiate a `gat/asymrob` (`results/perquery/graph_partial_valid/`, §47) e `gat/asymrob_s<S>`
+(`results/perquery/seeds/s<S>/fusion_branches_valid/`, §57): stesse 2000 query, gallery, stanze tolte.
+Valutazione: 04 diretto con `PERQUERY_OUT=results/perquery/verifica_grafi/s<S>`, `--split valid`, f ∈ {0, .25, .5, .75}.
+**Metro**: AUC self_rr `random` sul valid (§23), `robustness_auc compare`, bootstrap B=10000.
+**Controlli di validità** (uno fallisce → nessun verdetto, si diagnostica): gallery sha1 `0c24cfc05e18` · 2000/2000
+appaiate · MRR f=0.0 ∈ [0.965, 0.980] · nessun avviso di danno diverso da `compare`.
+**Budget**: best_epoch > 270 → dichiarato, nessun rilancio. Fallimento di infrastruttura → rilancio stesso seed.
+**Verdetto** (Δ = SAGE − GAT): **GAT confermato** se CI di Δ replica 0 < 0 **e** media dei 4 Δ appaiati < 0 ·
+**SAGE migliore** se CI di Δ replica 0 > 0 **e** media dei 4 Δ > 0 · **altrimenti pareggio → resta GAT** (spareggio
+§23.1 non applicato).
+**Se SAGE migliore**: (a) analisi aggiuntiva o (b) sostituzione dichiarata con fusione rifatta — ⚠️ **NON ancora scelto**
+al lancio: va scelto e scritto qui **prima di leggere qualsiasi numero SAGE** (compresi i `training_summary.json`).
+**Previsione**: P1: Δ < 0 (GAT più robusto, come in §32).
+**Fuori perimetro (dichiarato)**: GCN; τ e `aggr` non ottimizzati per la regola nuova → il verdetto vale per questa ricetta.
+**Job lanciati (1 ott, sera, dal main agent su autorizzazione esplicita)** — training → eval (`afterok`):
+s0 `sage/asymrob` 127996 → 127997 · s100042 127998 → 127999 · s200042 128000 → 128001 · s300042 128002 → 128003.
+**Scelta (a)/(b) — 2 ott, mattina, PRIMA di leggere qualsiasi numero SAGE** (decisione utente): **(a) analisi
+aggiuntiva**. GAT resta il ramo grafo della fusione qualunque sia il verdetto; il confronto va nel paper come controllo
+aggiuntivo solo su valid; nessun test per SAGE, nessuna fusione rifatta. Stato al momento della scelta: 8 job COMPLETED
+(exit 0), 4 log eval con path per-query in `results/perquery/verifica_grafi/s<S>/` (4 npz ciascuno), nessun npz/json SAGE
+ancora aperto.
+
+### 58.1 Risultati SAGE vs GAT (2 ott, dopo la scelta (a))
+
+Job 127996–128003 tutti COMPLETED, exit 0; per-query in `results/perquery/verifica_grafi/s<S>/` (log verificati).
+**Budget**: best_epoch 295 / 299 / 297 / 299 su 300 (s0 / s100042 / s200042 / s300042) → `budget_binding=True` in
+tutte: dichiarato, nessun rilancio (come da §58). SAGE probabilmente ancora in crescita a 300 epoche.
+**Controlli di validità**: gallery `0c24cfc05e18` in 16/16 npz ✅ · split valid, exclude_self ✅ · n=2000 appaiate in 4/4 ✅ ·
+nessun avviso di danno da `compare` ✅ · **MRR f=0.0 ∈ [0.965, 0.980]: ❌ 2/4** — SAGE 0.9672 / 0.9655 / 0.9644 / 0.9628
+(GAT stesse query: 0.9781 / 0.9765 / 0.9789 / 0.9765).
+**Confronto appaiato** (AUC self_rr random, valid, Δ = SAGE − GAT, CI 95% bootstrap B=10000):
+
+| replica | AUC SAGE | AUC GAT | Δ [CI] | p |
+|---|---|---|---|---|
+| s0 | 0.4779 | 0.4568 | +0.0210 [+0.0123, +0.0298] | 5.2e-09 |
+| s100042 | 0.4979 | 0.4691 | +0.0288 [+0.0201, +0.0371] | 7.5e-11 |
+| s200042 | 0.4882 | 0.4719 | +0.0163 [+0.0078, +0.0250] | 8.6e-05 |
+| s300042 | 0.5030 | 0.4670 | +0.0360 [+0.0275, +0.0445] | 3.5e-14 |
+| media | 0.4918 | 0.4662 | **+0.0255** | |
+
+**Previsione P1 (Δ < 0): smentita.** Tutti e 4 i Δ > 0 con CI che esclude lo zero.
+**Verdetto formale: SOSPESO** — un controllo di validità pre-registrato è fallito (MRR f=0.0 sotto 0.965 in 2 repliche).
+Diagnosi: non è un guasto di pipeline (gallery, query, split, danno identici; MRR ~0.96, non ~0); è un tratto del modello:
+SAGE recupera un po' peggio la pianta intera (−0.011/−0.016 vs GAT) e molto meglio quella danneggiata. La banda
+[0.965, 0.980] era calibrata su GAT e troppo stretta. Se la si accetta come errore di calibrazione (deviazione da dichiarare),
+la regola di §58 dà **SAGE migliore** (CI replica 0 > 0 e media dei 4 Δ > 0). Decisione sulla deviazione: **all'utente**.
+Per la scelta (a): GAT resta nella fusione in ogni caso; nessun test per SAGE.
+**Decisione utente (2 ott, dopo i numeri)**: deviazione **accettata e dichiarata** — la banda MRR f=0.0 [0.965, 0.980]
+era calibrata su GAT e serviva a scovare guasti di pipeline, non a misurare il modello; gli altri controlli passano.
+**Verdetto §58: SAGE più robusto di GAT** a parità di ricetta e di regola di selezione (valid, Δ AUC +0.021 replica 0,
++0.026 media su 4). Per la scelta (a): GAT resta nella fusione, nessun test per SAGE, fusione non rifatta. Il verdetto
+vale per questa ricetta (τ 0.3, aggr mean, tetto 300 vincolante); GCN non riprovato. Aggiornati `PAPER.md` e
+`VERIFICA_GRAFI.md`.

@@ -23,10 +23,22 @@
 #   sbatch scripts/evaluation/09_queryvec_graph.sh valid
 #   sbatch scripts/evaluation/09_queryvec_graph.sh test       # ONLY in the pre-registered test group
 #   FORCE=1 sbatch ...                                        # overwrite files already there
+#   sbatch scripts/evaluation/09_queryvec_graph.sh valid 100042   # multi-seed replica (1 Oct 2026)
 #
 # Output (4 + 4 files):
 #   results/perquery/fusion_branches_<split>/graph_gat_asymrob_partial-random-f<f>_<split>.npz
 #   results/queryvec/<split>/graph_gat_asymrob_partial-random-f<f>_<split>.npz
+#
+# Seed mode (optional $2 = S, digits only): variant gat/asymrob_s<S> (trained by
+# 03 with --seed S), damage `--partial-seed S` (the same rooms as 08 with seed S:
+# rng `S + qi`), query sample unchanged (seed 42). Outputs ONLY under seeds/s<S>/:
+#   results/perquery/seeds/s<S>/fusion_branches_<split>/graph_gat_asymrob_s<S>_partial-random-f<f>_<split>.npz
+#   results/queryvec/seeds/s<S>/<split>/graph_gat_asymrob_s<S>_partial-random-f<f>_<split>.npz
+# Fails fast if the checkpoint is missing (03 exits 0 even when training fails,
+# so `afterok` does not protect) and, on the test, if the valid select json of the
+# replica is missing (the test rewrites asymrob_s<S>/embeddings.npy, pinned by the
+# valid qvec: the valid fusion must be finished first).
+# Without $2 the command line and the folders are exactly the historical ones.
 
 #SBATCH --job-name="ev_09_queryvec_graph"
 #SBATCH --output=logs/%x_%j.log
@@ -54,22 +66,50 @@ case "$SPLIT" in
   *) echo "!! ERRORE: serve lo split come primo argomento (valid | test), ricevuto '$SPLIT'" >&2
      exit 1 ;;
 esac
+SEED="${2:-}"
+if [ -n "$SEED" ] && ! [[ "$SEED" =~ ^[0-9]+$ ]]; then
+  echo "!! ERRORE: il seed (secondo argomento) deve essere un intero, ricevuto '$SEED'" >&2
+  exit 1
+fi
 
 # Fixed config of the pre-registration (§49).
 TARGET=gat
 VARIANT=asymrob
+[ -n "$SEED" ] && VARIANT="asymrob_s${SEED}"
 TAG="graph_${TARGET}_${VARIANT}"
 FRACTIONS="0.0 0.25 0.5 0.75"
 
-PERQUERY_OUT="results/perquery/fusion_branches_${SPLIT}"
-QVEC_DIR="results/queryvec/${SPLIT}"
-for D in "$PERQUERY_OUT" "$QVEC_DIR"; do
-  case "$D" in
-    results/perquery/fusion_branches_valid|results/perquery/fusion_branches_test|results/queryvec/valid|results/queryvec/test) ;;
-    *) echo "!! ERRORE: cartella di output non ammessa: '$D' (solo fusion_branches_* e queryvec/*)" >&2
-       exit 1 ;;
-  esac
-done
+if [ -z "$SEED" ]; then
+  PERQUERY_OUT="results/perquery/fusion_branches_${SPLIT}"
+  QVEC_DIR="results/queryvec/${SPLIT}"
+  for D in "$PERQUERY_OUT" "$QVEC_DIR"; do
+    case "$D" in
+      results/perquery/fusion_branches_valid|results/perquery/fusion_branches_test|results/queryvec/valid|results/queryvec/test) ;;
+      *) echo "!! ERRORE: cartella di output non ammessa: '$D' (solo fusion_branches_* e queryvec/*)" >&2
+         exit 1 ;;
+    esac
+  done
+else
+  PERQUERY_OUT="results/perquery/seeds/s${SEED}/fusion_branches_${SPLIT}"
+  QVEC_DIR="results/queryvec/seeds/s${SEED}/${SPLIT}"
+  for D in "$PERQUERY_OUT" "$QVEC_DIR"; do
+    case "$D" in
+      "results/perquery/seeds/s${SEED}/fusion_branches_${SPLIT}"|"results/queryvec/seeds/s${SEED}/${SPLIT}") ;;
+      *) echo "!! ERRORE: cartella di output non ammessa: '$D' (solo seeds/s${SEED}/...)" >&2
+         exit 1 ;;
+    esac
+  done
+  CKPT="embeddings/graph/${TARGET}/${VARIANT}/encoder.pt"
+  if [ ! -f "$CKPT" ]; then
+    echo "!! ERRORE: checkpoint mancante: $CKPT (training 03 fallito o non lanciato?)" >&2
+    exit 1
+  fi
+  SEL_VALID="results/fusion/seeds/s${SEED}/select_valid.json"
+  if [ "$SPLIT" = "test" ] && [ ! -f "$SEL_VALID" ]; then
+    echo "!! ERRORE: sul test serve prima la fusione valid della replica: manca $SEL_VALID" >&2
+    exit 1
+  fi
+fi
 
 EXISTING=$(ls "$QVEC_DIR"/${TAG}_partial-random-f*_"${SPLIT}".npz 2>/dev/null | wc -l)
 if [ "$EXISTING" -gt 0 ] && [ "${FORCE:-0}" != "1" ]; then
@@ -81,6 +121,7 @@ fi
 # `--split` explicit also on valid: argparse keeps the last one, after the YAML's.
 export PERQUERY_OUT
 export GRAPH_PARTIAL_FLAGS="--partial --partial-strategies random --partial-fractions $FRACTIONS"
+[ -n "$SEED" ] && GRAPH_PARTIAL_FLAGS="$GRAPH_PARTIAL_FLAGS --partial-seed $SEED"
 export GRAPH_EXTRA_FLAGS="--split $SPLIT --query-vectors-out $QVEC_DIR"
 mkdir -p logs "$PERQUERY_OUT" "$QVEC_DIR"
 
@@ -110,4 +151,4 @@ echo ""
 echo "=== completato: $(date) | rc=$RC | file mancanti: $MISSING ==="
 ls -la "$QVEC_DIR"
 [ $RC -eq 0 ] && [ $MISSING -eq 0 ] || exit 1
-echo "PROSSIMO PASSO (a 08 e 09 finiti): sbatch scripts/evaluation/10_late_fusion.sh $SPLIT"
+echo "PROSSIMO PASSO (a 08 e 09 finiti): sbatch scripts/evaluation/10_late_fusion.sh $SPLIT${SEED:+ $SEED}"

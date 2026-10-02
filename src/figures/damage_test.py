@@ -86,7 +86,7 @@ LABELS = {
     "en": {
         "x": "fraction of rooms removed from the query",
         "y": "self-recovery MRR",
-        "ceiling": "data ceiling\n(excluded from the AUC)",
+        "ceiling": "data ceiling\n(not in the AUC)",
         "auc": "AUC",
     },
 }

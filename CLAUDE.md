@@ -178,11 +178,13 @@ Cifre: `status.md`, da leggere prima di citarne una, **sempre dicendo con quale 
 - ✅ **TEST letto una volta (18 set, §53)**: fusione **0.6424** vs graph 0.4700 / vision 0.3965
   (+0.1725 [+0.1625, +0.1826]), oracolo 0.5693; vision a tre danni 0.5210; pianta intera
   0.851/0.686/0.954. Il valid generalizza.
+- ✅ **Repliche multi-seed (1 ott, §57)**: storica + 3 (training graph + stanze tolte), test n=4: fusione
+  **0.6401 ± 0.0031**, graph 0.4697 ± 0.0035, vision 0.3916 ± 0.0045; α*=0.6 e «la fusione aiuta» in tutte ⇒ risultato stabile.
 - **Figure (§54)**: due colonne, moduli in `src/figures/`, output in `figures/` con la provenienza
   accanto; **7 su 8 fatte senza nessun job**. Resta la sola F4 (csv incompleto), decisione degli utenti.
 - **Graph**: scegliere il checkpoint sul full era **erratico** (epoca 6-33) e spiegava il crollo sotto
   masking (§30) e la topologia «venduta» (§30.8); sulla robustezza costa ~0.017 di composizione (§47).
-  ⚠️ Due training identici differiscono di ~0.04 AUC; l'ordine gat ≫ sage/gcn viene dalla regola
+  ⚠️ Due training identici differivano di ~0.04 AUC (§47; nelle 4 repliche di §57 il graph sta in 0.466–0.474 sul test); l'ordine gat ≫ sage/gcn viene dalla regola
   vecchia (non riverificato).
 - ⚠️ **Claim caduti — mai senza qualifica**: «il vision è robusto al masking», «la head vision aiuta
   sotto masking» (solo sul danno di training, §37, §48), «il vision batte il graph in geometria» (§22),

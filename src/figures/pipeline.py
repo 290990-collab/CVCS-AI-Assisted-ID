@@ -75,8 +75,8 @@ LABELS = {
         "fusion": "late fusion\n[√α·v ; √(1−α)·g]\nα={alpha:g} → {df}-d",
         "shared": ("Whichever of the three vectors is used, the search is the same: FAISS over "
                    "the shared gallery of {n} plans,\nsame queries, same exclusions. "
-                   "Measured by: does the damaged plan find itself (metric of record) · "
-                   "per-axis nDCG (descriptive)."),
+                   "Metric: the damaged plan finds itself (main) · per-axis nDCG "
+                   "(descriptive)."),
         "frozen": "not trained",
         "trained": "the only trained part",
     },
@@ -162,7 +162,9 @@ def draw(facts: dict, lang: str, height_in: float):
     ax.add_patch(FancyBboxPatch((1, 4), 98, 20, boxstyle="round,pad=0.6,rounding_size=2.0",
                                 linewidth=0.9, edgecolor=SHARED_C, facecolor="0.96",
                                 linestyle=(0, (4, 3))))
-    ax.text(50, 14, text["shared"].format(n=facts["n"]), ha="center", va="center",
+    # Thousands separator per language: 67.405 (it) vs 67,405 (en).
+    n = facts["n"] if lang == "it" else f"{facts['n_raw']:,}"
+    ax.text(50, 14, text["shared"].format(n=n), ha="center", va="center",
             fontsize=6.4, color="0.20", linespacing=1.5)
     # Un vettore per freccia: vision, graph, fusione. Le colonne sono sfalsate
     # apposta, cosi' ogni freccia scende libera fino alla barra.

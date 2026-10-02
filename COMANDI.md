@@ -833,9 +833,133 @@ python -m src.figures.ablation_valid
 python -m src.figures.ablation_valid --refresh          # ricalcola figures/f_ablation_valid.data.json
 ```
 
+```bash
+# curva del danno sul TEST, media sulle 4 repliche (§57), banda ± 1 sd FRA repliche
+python -m src.figures.damage_test_seeds --out-dir figures/italian
+python -m src.figures.damage_test_seeds --lang en --out-dir figures/english
+```
+
 Etichette in inglese con `--lang en`; `--name`/`--out-dir` per scriverle altrove.
 `alpha_valid` **si ferma** se una media ricalcolata dai per-query non coincide con quella
 già nel json di `fusion_select`: la figura deve mostrare i numeri del report, non altri.
 Il teaser non ricalcola niente: la classifica viene da `ret_rows` (che esclude la query) più
 `self_rr` (che dice a che posto stava), e il danno è ridisegnato dalle stanze salvate nel `qvec`.
 Senza `--query` sceglie da sé con una regola dichiarata, scritta nel `*.sources.txt`.
+
+### Repliche multi-seed — protocollo `status.md §57`, ricetta per QUALSIASI seed nuovo
+
+Una replica = un seed `S`: training graph `gat/asymrob_s<S>` (`--seed S`) + danno `partial.seed=S` su
+entrambi i rami (vision: nowalls + crop + patch nello stesso job 08; graph: `--partial-seed S`, stesse
+stanze). Stesse 2000 query (seed 42), stessa gallery. α* scelto sul **valid** della replica, il test lo usa
+fisso. Senza il secondo argomento 08/09/10 fanno **esattamente** il comando storico. Output solo sotto
+`results/{perquery,queryvec,fusion}/seeds/s<S>/` ed `embeddings/graph/gat/asymrob_s<S>{,_selfull}/`.
+
+**Già fatte (1 ott, §57.1-§57.3)**: `100042 200042 300042` (+ la storica = replica 0). Non riusarle.
+
+**Scegliere i seed nuovi**: solo cifre, mai già usati, distanti fra loro (e da 42, 100042, 200042,
+300042) **almeno 67.405** = n. di piante: il danno usa l'rng `seed + qi` con `qi` fino a 67.405, quindi
+seed vicini riuserebbero gli stessi stream. Proposta: `400042 500042 600042`.
+
+**Prima di lanciare** (regola del progetto: si dichiara prima, non dopo): aggiungere in `status.md` una
+riga sotto §57 con i seed nuovi e la data — protocollo, controlli e previsioni restano quelli di §57.
+
+⚠️ Mentre una replica è in corso **non** lanciare `04_eval_gnn.sh gat ablation` né rivalutare `asymrob*`:
+riscrive `embeddings.npy` della variante e la fusione si ferma (sha1).
+
+```bash
+cd /work/cvcs2026/ai_interior_design/CVCS-AI-Assisted-ID
+SEEDS="400042 500042 600042"                     # <- i seed nuovi
+squeue -u gangelillis,edimaria,ggermini          # la quota GPU dell'account è condivisa
+
+# FASE 1 — GPU: training + valid (+ vision sul test, che non dipende dal graph). Repliche in parallelo.
+for S in $SEEDS; do
+  T=$(sbatch --parsable --time=16:00:00 scripts/graph/03_train_gnn.sh gat asymrob_s$S)
+  VV=$(sbatch --parsable scripts/evaluation/08_queryvec_vision.sh valid $S)
+  VT=$(sbatch --parsable scripts/evaluation/08_queryvec_vision.sh test $S)
+  GV=$(sbatch --parsable --dependency=afterok:$T scripts/evaluation/09_queryvec_graph.sh valid $S)
+  FV=$(sbatch --parsable --dependency=afterok:$VV:$GV scripts/evaluation/10_late_fusion.sh valid $S)
+  echo "S=$S train=$T vision_valid=$VV vision_test=$VT graph_valid=$GV fusion_valid=$FV"
+done
+# -> annotare gli id in .claude/TODO.md (In attesa dell'utente)
+
+# controllo a fase 1 finita: tutti COMPLETED + un encoder.pt per seed (03 esce 0 anche se fallisce)
+sacct -u $USER -S today -o JobID,JobName%22,State,Elapsed | grep -v "\."
+for S in $SEEDS; do grep -H "salvato .*asymrob_s$S/encoder.pt" logs/gp_03_train_gnn_*.log; done
+
+# FASE 2 — CPU, login node (secondi): controlli, poi alpha* della replica
+for S in $SEEDS; do
+  bash scripts/evaluation/15_seed_fusion_select.sh check  valid $S && \
+  bash scripts/evaluation/15_seed_fusion_select.sh select valid $S
+done
+#    «ESITO REPLICA: FAIL» -> quella replica si ferma (le altre proseguono): vedi «Se C3 fallisce» sotto
+
+# FASE 3 — GPU: test con alpha* della replica (09 rifiuta di partire senza select_valid.json)
+for S in $SEEDS; do
+  GT=$(sbatch --parsable scripts/evaluation/09_queryvec_graph.sh test $S)
+  FT=$(sbatch --parsable --dependency=afterok:$GT scripts/evaluation/10_late_fusion.sh test $S)
+  echo "S=$S graph_test=$GT fusion_test=$FT"
+done
+
+# FASE 4 — CPU: controlli e numeri del test
+for S in $SEEDS; do
+  bash scripts/evaluation/15_seed_fusion_select.sh check  test $S && \
+  bash scripts/evaluation/15_seed_fusion_select.sh select test $S
+done
+
+# FASE 5 — CPU: tabella fra TUTTE le repliche (trova da sé le cartelle seeds/s<S>) + figura
+python -m src.evaluation.seed_summary                                   # -> results/fusion/seeds/summary.json
+python -m src.figures.damage_test_seeds --out-dir figures/italian       # repliche finite trovate da sé
+python -m src.figures.damage_test_seeds --lang en --out-dir figures/english
+```
+
+**Se C3 fallisce** (la fusione con α=0 non riproduce il graph, o con α=1 il vision): stop per quella
+replica e diagnosi. Precedente (§57.2): differenze tutte **pareggi alla precisione float32** di FAISS →
+accettato dall'utente con un file di deroga. Diagnosi per il caso graph (α=0), con `S`, `SPLIT`, `F` presi
+dalla riga FAIL del check. ⚠️ Va fatta **subito**, prima della fase 3 della stessa replica: ogni
+valutazione del graph (09 test compreso) riscrive `embeddings.npy` e, per il non determinismo della GPU, la
+gallery cambia di qualche ulp (visto il 1 ott: s300042 valid 624e… → test ef6b…). Lo script si ferma se la
+gallery su disco non è quella del check:
+
+```bash
+S=400042 SPLIT=valid F=0.75 python - <<'PY'
+import json, os, numpy as np
+from src.evaluation.query_vectors import load_qvec
+S, SP, F = os.environ["S"], os.environ["SPLIT"], os.environ["F"]
+fa = np.load(f"results/perquery/seeds/s{S}/fusion_{SP}/fusion_a0_partial-nowalls-random-f{F}_{SP}.npz")
+gb = np.load(f"results/perquery/seeds/s{S}/fusion_branches_{SP}/graph_gat_asymrob_s{S}_partial-random-f{F}_{SP}.npz")
+q = load_qvec(f"results/queryvec/seeds/s{S}/{SP}/graph_gat_asymrob_s{S}_partial-random-f{F}_{SP}.npz")
+from src.evaluation.query_vectors import array_sha1
+G = np.load(f"embeddings/graph/gat/asymrob_s{S}/embeddings.npy")
+assert array_sha1(G) == q.meta["gallery_vectors"]["sha1"], "gallery riscritta dopo il check: diagnosi non valida"
+G = G.astype(np.float64)
+idx = {n: i for i, n in enumerate(json.load(open(f"embeddings/graph/gat/asymrob_s{S}/names.json")))}
+diff = np.where(fa["self_rr"] != gb["self_rr"])[0]; ok = 0
+for i in diff:
+    row = idx[str(fa["names"][i])]; s = G @ q.vectors[i].astype(np.float64); x = s[row]
+    ulp = float(np.spacing(np.float32(x))); o = np.delete(s, row)
+    lo, hi = int((o > x + ulp).sum()) + 1, int((o >= x - ulp).sum()) + 1
+    ok += all(lo <= round(1 / rr) <= hi for rr in (fa["self_rr"][i], gb["self_rr"][i]))
+print(f"{ok}/{len(diff)} differenze spiegate da pareggi entro ±1 ulp float32")
+PY
+```
+
+Solo se stampa **N/N** (tutte) e **l'utente approva**, si scrive la deroga e si riprende da `select`
+(`15_seed_fusion_select.sh` la legge e la stampa); poi una riga in `status.md` sotto §57. Modello del
+file `results/fusion/seeds/s<S>/c3_waiver_<split>.json` (precedente: `seeds/s300042/c3_waiver_valid.json`):
+
+```json
+{"accepted": true, "date": "<data>", "approved_by": "<utente>",
+ "rule": "status.md §50/§57.2: pareggi alla precisione float32",
+ "reason": "C3 alpha=0 vs graph f=<F>: <k>/2000 diversi, <k>/<k> entro ±1 ulp float32"}
+```
+
+```bash
+bash scripts/evaluation/15_seed_fusion_select.sh select $SPLIT $S       # dopo aver scritto la deroga
+```
+
+Se **non** sono tutte spiegate, o il FAIL è su α=1 (vision) o su C1/C2: stop e diagnosi prima di andare
+avanti. **Mai scartare** una replica completata; una replica fallita per l'infrastruttura (job morto,
+timeout) si rilancia **con lo stesso S** (`FORCE=1` davanti allo `sbatch` dello step da rifare).
+
+Durata indicativa per replica (`sacct` del 1 ott): training 0:45-1:48 · 08 ~1:00-1:30 per split · 09 ~7 min
+per split · 10 valid ~1:20, test ~0:23 (CPU). ≈ 4-5 GPU-h a replica.

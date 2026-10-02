@@ -16,10 +16,18 @@
 #   sbatch scripts/evaluation/08_queryvec_vision.sh valid
 #   sbatch scripts/evaluation/08_queryvec_vision.sh test      # ONLY in the pre-registered test group
 #   FORCE=1 sbatch ...                                        # overwrite files already there
+#   sbatch scripts/evaluation/08_queryvec_vision.sh valid 100042   # multi-seed replica (1 Oct 2026)
 #
 # Output (4 + 4 files):
 #   results/perquery/fusion_branches_<split>/vision_pespatial_gem_whiten-train_partial-nowalls-random-f<f>_<split>.npz
 #   results/queryvec/<split>/vision_pespatial_gem_whiten-train_partial-nowalls-random-f<f>_<split>.npz
+#
+# Seed mode (optional $2 = S, digits only): damage seed `partial.seed=S` (query
+# sample unchanged, eval.seed 42), crop + patch also on (per-query only: they
+# remove no rooms, so no qvec), outputs ONLY under seeds/s<S>/:
+#   results/perquery/seeds/s<S>/fusion_branches_<split>/  (4 nowalls-random + 3 crop + 3 patch)
+#   results/queryvec/seeds/s<S>/<split>/                  (4 nowalls-random)
+# Without $2 the command line and the folders are exactly the historical ones.
 
 #SBATCH --job-name="ev_08_queryvec_vision"
 #SBATCH --output=logs/%x_%j.log
@@ -48,28 +56,56 @@ case "$SPLIT" in
   *) echo "!! ERRORE: serve lo split come primo argomento (valid | test), ricevuto '$SPLIT'" >&2
      exit 1 ;;
 esac
+SEED="${2:-}"
+if [ -n "$SEED" ] && ! [[ "$SEED" =~ ^[0-9]+$ ]]; then
+  echo "!! ERRORE: il seed (secondo argomento) deve essere un intero, ricevuto '$SEED'" >&2
+  exit 1
+fi
 
 # Fixed config of the pre-registration (§49): not arguments, not env.
 MODEL=pespatial
 POOL=gem
 TAG="vision_${MODEL}_${POOL}_whiten-train"
 FRACTIONS="0.0 0.25 0.5 0.75"
+DAMAGE_FRACTIONS="0.25 0.5 0.75"   # crop/patch, seed mode only (configs/vision_retrieval.yaml)
 
 # Fixed output folders + explicit whitelist (belt and braces against edits).
-PERQUERY_DIR="results/perquery/fusion_branches_${SPLIT}"
-QVEC_DIR="results/queryvec/${SPLIT}"
-for D in "$PERQUERY_DIR" "$QVEC_DIR"; do
-  case "$D" in
-    results/perquery/fusion_branches_valid|results/perquery/fusion_branches_test|results/queryvec/valid|results/queryvec/test) ;;
-    *) echo "!! ERRORE: cartella di output non ammessa: '$D' (solo fusion_branches_* e queryvec/*)" >&2
-       exit 1 ;;
-  esac
-done
+# Damage switches: historical mode = crop/patch off, no partial.seed (YAML's 42).
+CROP=false
+PATCH=false
+SEED_FLAGS=()
+if [ -z "$SEED" ]; then
+  PERQUERY_DIR="results/perquery/fusion_branches_${SPLIT}"
+  QVEC_DIR="results/queryvec/${SPLIT}"
+  for D in "$PERQUERY_DIR" "$QVEC_DIR"; do
+    case "$D" in
+      results/perquery/fusion_branches_valid|results/perquery/fusion_branches_test|results/queryvec/valid|results/queryvec/test) ;;
+      *) echo "!! ERRORE: cartella di output non ammessa: '$D' (solo fusion_branches_* e queryvec/*)" >&2
+         exit 1 ;;
+    esac
+  done
+else
+  PERQUERY_DIR="results/perquery/seeds/s${SEED}/fusion_branches_${SPLIT}"
+  QVEC_DIR="results/queryvec/seeds/s${SEED}/${SPLIT}"
+  for D in "$PERQUERY_DIR" "$QVEC_DIR"; do
+    case "$D" in
+      "results/perquery/seeds/s${SEED}/fusion_branches_${SPLIT}"|"results/queryvec/seeds/s${SEED}/${SPLIT}") ;;
+      *) echo "!! ERRORE: cartella di output non ammessa: '$D' (solo seeds/s${SEED}/...)" >&2
+         exit 1 ;;
+    esac
+  done
+  CROP=true
+  PATCH=true
+  SEED_FLAGS=("partial.seed=$SEED")
+fi
 [ -n "${EXTRA:-}${POOLS:-}${TRANSFORMS:-}" ] && \
   echo "⚠️  EXTRA/POOLS/TRANSFORMS impostate nell'ambiente: IGNORATE (config fissa di §49)"
 
 # Refuse to overwrite a finished run by accident (FORCE=1 to redo it).
 EXISTING=$(ls "$QVEC_DIR"/${TAG}_partial-nowalls-random-f*_"${SPLIT}".npz 2>/dev/null | wc -l)
+if [ -n "$SEED" ]; then
+  EXISTING=$((EXISTING + $(ls "$PERQUERY_DIR"/${TAG}_partial-*_"${SPLIT}".npz 2>/dev/null | wc -l)))
+fi
 if [ "$EXISTING" -gt 0 ] && [ "${FORCE:-0}" != "1" ]; then
   echo "!! ERRORE: $EXISTING file qvec gia' presenti in $QVEC_DIR per $TAG: rilancia con FORCE=1 se voluto" >&2
   exit 1
@@ -78,6 +114,7 @@ mkdir -p logs "$PERQUERY_DIR" "$QVEC_DIR"
 
 echo "=== $(date) | LATE FUSION — vision query vectors | split $SPLIT | $TAG ==="
 echo "per-query -> $PERQUERY_DIR | qvec -> $QVEC_DIR | nowalls_random f = $FRACTIONS"
+[ -n "$SEED" ] && echo "SEED MODE: partial.seed=$SEED | crop=$CROP patch=$PATCH (f = $DAMAGE_FRACTIONS, solo per-query)"
 [ "$SPLIT" = "test" ] && echo "⚠️  TEST: solo nel gruppo di job pre-registrato, con alpha* gia' fissato sul valid."
 nvidia-smi
 
@@ -89,11 +126,12 @@ python -m src.vision.evaluation.evaluate \
   partial.enabled=true \
   partial.strategies.random.enabled=false \
   partial.strategies.semantic.enabled=false partial.strategies.topology.enabled=false \
-  partial.strategies.crop.enabled=false partial.strategies.patch.enabled=false \
+  partial.strategies.crop.enabled=$CROP partial.strategies.patch.enabled=$PATCH \
   partial.strategies.nowalls_random.enabled=true \
   "partial.strategies.nowalls_random.fractions=[0.0,0.25,0.5,0.75]" \
   partial.strategies.nowalls_semantic.enabled=false partial.strategies.nowalls_topology.enabled=false \
-  eval.split="$SPLIT" eval.perquery_dir="$PERQUERY_DIR" eval.query_vectors_dir="$QVEC_DIR"
+  eval.split="$SPLIT" eval.perquery_dir="$PERQUERY_DIR" eval.query_vectors_dir="$QVEC_DIR" \
+  "${SEED_FLAGS[@]}"
 RC=$?
 
 # The exit code alone is not trusted: every expected file must exist and be new.
@@ -107,10 +145,22 @@ for F in $FRACTIONS; do
     fi
   done
 done
+# Seed mode: crop/patch per-query files too (needed by `robustness_auc rank --robust`).
+if [ -n "$SEED" ]; then
+  for S in crop patch; do
+    for F in $DAMAGE_FRACTIONS; do
+      P="$PERQUERY_DIR/${TAG}_partial-${S}-f${F}_${SPLIT}.npz"
+      if [ ! -f "$P" ] || [ ! "$P" -nt "$START_MARK" ]; then
+        echo "!! MANCANTE o vecchio: $P" >&2
+        MISSING=$((MISSING + 1))
+      fi
+    done
+  done
+fi
 rm -f "$START_MARK"
 
 echo ""
 echo "=== completato: $(date) | rc=$RC | file mancanti: $MISSING ==="
 ls -la "$QVEC_DIR"
 [ $RC -eq 0 ] && [ $MISSING -eq 0 ] || exit 1
-echo "PROSSIMO PASSO: scripts/evaluation/09_queryvec_graph.sh $SPLIT (poi 10_late_fusion.sh $SPLIT)"
+echo "PROSSIMO PASSO: scripts/evaluation/09_queryvec_graph.sh $SPLIT${SEED:+ $SEED} (poi 10_late_fusion.sh $SPLIT${SEED:+ $SEED})"

@@ -110,6 +110,9 @@ variant_eval_flags() {
     asymlost|asymlostrob|asymlostrob_selfull)                  echo "--lost-marker" ;;
     base|nosym|nojitter|nd01|noaug|tau02|tau05|selmean|selgeom|tau02asym|asym|asymrep) echo "" ;;
     asymrob|asymrob_selfull|asymrobrep|asymrobrep_selfull)     echo "" ;;
+    # repliche multi-seed di asymrob (1 ott 2026, 03: `asymrob_s<S>`): stessa rete
+    asymrob_s[0-9]*)
+      if [[ "$1" =~ ^asymrob_s[0-9]+(_selfull)?$ ]]; then echo ""; else echo "__INVALID__"; fi ;;
     *)                                                         echo "__INVALID__" ;;
   esac
 }

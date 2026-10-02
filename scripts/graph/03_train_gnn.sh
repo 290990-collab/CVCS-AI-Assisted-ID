@@ -12,6 +12,7 @@
 #   sbatch scripts/graph/03_train_gnn.sh gcn              # baseline, un solo encoder
 #   sbatch scripts/graph/03_train_gnn.sh gcn ablation     # TUTTE le varianti di ablation di gcn
 #   sbatch scripts/graph/03_train_gnn.sh gcn tau05        # una singola variante
+#   sbatch scripts/graph/03_train_gnn.sh gat asymrob_s100042   # replica di asymrob con --seed 100042
 #   (basename del YAML: graph_sage.yaml -> encoder "sage")
 #
 # ⚠️ In modalita' `ablation` lancia 10 training di fila: usare UN ENCODER PER JOB
@@ -86,6 +87,15 @@ variant_flags() {
     # --- 15 set 2026: stesse coppie, checkpoint scelto sulla robustezza (+ shadow _selfull) ---
     asymrob|asymrobrep) echo "--pair-mode asym_partial $ROB" ;;
     asymlostrob)        echo "--pair-mode asym_partial --lost-marker $ROB" ;;
+    # --- 1 ott 2026: repliche multi-seed di asymrob, `asymrob_s<S>` -> --seed S ---
+    # Non sono in ALL_VARIANTS: si passano per nome (es. `gat asymrob_s100042`).
+    # --seed dopo il YAML (seed: 42): vince S. Suffisso non numerico = variante sconosciuta.
+    asymrob_s[0-9]*)
+      if [[ "$1" =~ ^asymrob_s([0-9]+)$ ]]; then
+        echo "--pair-mode asym_partial $ROB --seed ${BASH_REMATCH[1]}"
+      else
+        echo "__INVALID__"
+      fi ;;
 
     # --- criterio di selezione del checkpoint ---
     # NB: i YAML hanno gia' `select_criterion: topology`, quindi `base` E' la

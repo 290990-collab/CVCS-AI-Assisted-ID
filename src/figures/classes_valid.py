@@ -137,8 +137,12 @@ def draw(loaded: dict, lang: str, height_in: float):
     # Spazio in alto per le mediane e le note: le barre non devono toccarle.
     ax.set_ylim(0, ax.get_ylim()[1] * 1.45)
     ax.legend(loc="upper left", bbox_to_anchor=(0.01, 0.90), labelspacing=0.3)
+    # Thousands separator per language: 67.405 (it) vs 67,405 (en).
+    gallery = f"{loaded['gallery']:,}"
+    if lang == "it":
+        gallery = gallery.replace(",", ".")
     ax.annotate(text["singleton"].format(c=singles["composition"], t=singles["topology"],
-                                        n=n, g=f"{loaded['gallery']:,}".replace(",", ".")),
+                                        n=n, g=gallery),
                 xy=(0.01, 0.64), xycoords="axes fraction", fontsize=6, color="0.30",
                 ha="left", va="top", linespacing=1.4)
     return fig

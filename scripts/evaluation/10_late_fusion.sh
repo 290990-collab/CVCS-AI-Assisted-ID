@@ -17,6 +17,17 @@
 #   sbatch scripts/evaluation/10_late_fusion.sh valid
 #   ALPHAS_FROM=results/fusion/select_valid.json sbatch scripts/evaluation/10_late_fusion.sh test
 #   FORCE=1 ...                                  # overwrite fused files already there
+#
+# Seed mode (optional $2 = S, digits only; multi-seed replica, 1 Oct 2026): inputs
+# from 08/09 run with the same S, output ONLY under seeds/s<S>/:
+#   results/queryvec/seeds/s<S>/<split>/vision_pespatial_gem_whiten-train_*
+#   results/queryvec/seeds/s<S>/<split>/graph_gat_asymrob_s<S>_*
+#   -> results/perquery/seeds/s<S>/fusion_<split>/
+# On the test ALPHAS_FROM is DERIVED = results/fusion/seeds/s<S>/select_valid.json
+# (an ALPHAS_FROM in the env pointing elsewhere is an error).
+#   sbatch scripts/evaluation/10_late_fusion.sh valid 100042
+#   sbatch scripts/evaluation/10_late_fusion.sh test 100042
+# Without $2 the command line and the folders are exactly the historical ones.
 
 #SBATCH --job-name="ev_10_late_fusion"
 #SBATCH --output=logs/%x_%j.log
@@ -42,17 +53,40 @@ case "$SPLIT" in
   *) echo "!! ERRORE: serve lo split come primo argomento (valid | test), ricevuto '$SPLIT'" >&2
      exit 1 ;;
 esac
+SEED="${2:-}"
+if [ -n "$SEED" ] && ! [[ "$SEED" =~ ^[0-9]+$ ]]; then
+  echo "!! ERRORE: il seed (secondo argomento) deve essere un intero, ricevuto '$SEED'" >&2
+  exit 1
+fi
 
-VISION_QVEC="results/queryvec/${SPLIT}/vision_pespatial_gem_whiten-train"
-GRAPH_QVEC="results/queryvec/${SPLIT}/graph_gat_asymrob"
-OUT="results/perquery/fusion_${SPLIT}"
-case "$OUT" in
-  results/perquery/fusion_valid|results/perquery/fusion_test) ;;
-  *) echo "!! ERRORE: cartella di output non ammessa: '$OUT'" >&2; exit 1 ;;
-esac
+ALPHAS_FROM="${ALPHAS_FROM:-}"
+if [ -z "$SEED" ]; then
+  VISION_QVEC="results/queryvec/${SPLIT}/vision_pespatial_gem_whiten-train"
+  GRAPH_QVEC="results/queryvec/${SPLIT}/graph_gat_asymrob"
+  OUT="results/perquery/fusion_${SPLIT}"
+  case "$OUT" in
+    results/perquery/fusion_valid|results/perquery/fusion_test) ;;
+    *) echo "!! ERRORE: cartella di output non ammessa: '$OUT'" >&2; exit 1 ;;
+  esac
+else
+  VISION_QVEC="results/queryvec/seeds/s${SEED}/${SPLIT}/vision_pespatial_gem_whiten-train"
+  GRAPH_QVEC="results/queryvec/seeds/s${SEED}/${SPLIT}/graph_gat_asymrob_s${SEED}"
+  OUT="results/perquery/seeds/s${SEED}/fusion_${SPLIT}"
+  case "$OUT" in
+    "results/perquery/seeds/s${SEED}/fusion_${SPLIT}") ;;
+    *) echo "!! ERRORE: cartella di output non ammessa: '$OUT'" >&2; exit 1 ;;
+  esac
+  if [ "$SPLIT" = "test" ]; then
+    SEL_VALID="results/fusion/seeds/s${SEED}/select_valid.json"
+    if [ -n "$ALPHAS_FROM" ] && [ "$ALPHAS_FROM" != "$SEL_VALID" ]; then
+      echo "!! ERRORE: in modalita' seed ALPHAS_FROM e' derivato ($SEL_VALID): togli ALPHAS_FROM='$ALPHAS_FROM' dall'ambiente" >&2
+      exit 1
+    fi
+    ALPHAS_FROM="$SEL_VALID"
+  fi
+fi
 
 ALPHA_FLAGS=()
-ALPHAS_FROM="${ALPHAS_FROM:-}"
 if [ "$SPLIT" = "test" ]; then
   if [ -z "$ALPHAS_FROM" ] || [ ! -f "$ALPHAS_FROM" ]; then
     echo "!! ERRORE: sul test serve ALPHAS_FROM=<select json del valid> (esistente): il test non sceglie alpha" >&2
@@ -91,6 +125,12 @@ echo "=== completato: $(date) | rc=$RC ==="
 ls "$OUT" | wc -l
 [ $RC -eq 0 ] || exit 1
 echo ""
+if [ -n "$SEED" ]; then
+  echo "PROSSIMO PASSO (CPU, secondi): PRIMA i controlli, poi — solo se PASS — la scelta di alpha:"
+  echo "  bash scripts/evaluation/15_seed_fusion_select.sh check $SPLIT $SEED"
+  echo "  bash scripts/evaluation/15_seed_fusion_select.sh select $SPLIT $SEED"
+  exit 0
+fi
 echo "PROSSIMO PASSO (CPU, secondi): PRIMA i controlli, poi — solo se tutti PASS — la scelta di alpha:"
 echo "  python -m src.evaluation.fusion_select check --split $SPLIT --fusion-dir $OUT \\"
 echo "      --vision-qvec $VISION_QVEC --graph-qvec $GRAPH_QVEC \\"

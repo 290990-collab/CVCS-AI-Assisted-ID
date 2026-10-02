@@ -55,7 +55,7 @@ LABELS = {
         "note": "{n} configurazioni frozen · {h} head allenate",
     },
     "en": {
-        "y": "R — mean robustness over the three damages",
+        "y": "R — mean robustness (3 damages)",
         "x": "encoder (ordered by median)",
         "chosen": "chosen config",
         "head": "trained head",
