@@ -1,0 +1,16 @@
+# f_reset_damage_test — figura del report
+data:     2026-10-05 23:02
+comando:  python -m src.figures.reset_results all --lang en --out-dir figures/reset/english
+
+numeri della figura:
+  graph_W: AUC 0.9032
+  vision_frozen: AUC 0.3965
+  vision_head: AUC 0.5328
+  fusion_main: AUC 0.9160
+  fusion_head: AUC 0.9340
+  layoutgkn: AUC 0.6112
+  hist_baseline: AUC 0.0013
+
+file letti:
+  results/csv_reset/test_damage_curve.csv
+  results/csv_reset/test_summary.csv

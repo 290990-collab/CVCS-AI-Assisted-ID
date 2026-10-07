@@ -1,0 +1,29 @@
+# f_round2_damage — figura del report
+data:     2026-10-06 21:04
+comando:  python -m src.figures.round2_results all --lang en --out-dir figures/reset_round2/english
+
+numeri della figura:
+  nowalls-random frozen: test 0.3965 · valid 0.3920
+  nowalls-random head: test 0.5324 · valid 0.5392
+  nowalls-random head_v2: test 0.6525 · valid 0.6668
+  crop frozen: test 0.6543 · valid 0.6605
+  crop head: test 0.5152 · valid 0.5191
+  crop head_v2: test 0.8202 · valid 0.8284
+  patch frozen: test 0.5123 · valid 0.5209
+  patch head: test 0.4115 · valid 0.4154
+  patch head_v2: test 0.6724 · valid 0.6731
+  media_tre_danni frozen: test 0.5210 · valid 0.5245
+  media_tre_danni head: test 0.4864 · valid 0.4912
+  media_tre_danni head_v2: test 0.7150 · valid 0.7228
+  test vision_head_v2 - vision_congelato nowalls-random: +0.2560 [+0.2459, +0.2664]
+  test vision_head_v2 - vision_congelato crop: +0.1659 [+0.1586, +0.1735]
+  test vision_head_v2 - vision_congelato patch: +0.1600 [+0.1530, +0.1670]
+  test vision_head_v2 - vision_congelato media_tre_danni: +0.1940 [+0.1886, +0.1993]
+  test vision_head_v2 - vision_head nowalls-random: +0.1201 [+0.1117, +0.1290]
+  test vision_head_v2 - vision_head crop: +0.3050 [+0.2958, +0.3142]
+  test vision_head_v2 - vision_head patch: +0.2608 [+0.2532, +0.2683]
+  test vision_head_v2 - vision_head media_tre_danni: +0.2287 [+0.2234, +0.2340]
+
+file letti:
+  results/csv_reset_round2/vision_damage_auc.csv
+  results/csv_reset_round2/vision_damage_deltas.csv

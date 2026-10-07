@@ -1,0 +1,104 @@
+# results/csv_reset — export dei risultati di RESET GRAPHS (nessun numero nuovo)
+# generato: 2026-10-05T22:57:18
+# comando: python -m src.evaluation.export_csv_reset
+
+## come leggere
+- metro e convenzioni come in results/csv/_sources.txt (self_rr, AUC su f 0.25/0.5/0.75, nDCG graduato,
+  per-query a precisione piena, delta full_plan descrittivi per circolarità)
+- sistemi del seed 42: graph_W = gat/comb · vision_frozen = pespatial/gem/whiten · vision_head = con head
+  + whitening del train · fusion_main alpha 0.4 · fusion_head alpha 0.3 ·
+  layoutgkn = LayoutGKN riallenato come W · hist_baseline (solo test) = baseline senza training
+- graph_W e vision_* sono gli estremi alpha=0 / alpha=1 delle fusioni (C3: riproducono i rami)
+- test letto una volta (status.md §63); valid = selezione (§59-§61); curva del valid ESPLORATIVA
+
+## verifiche superate
+- valid/graph_W: AUC = json entro 1e-06
+- valid/vision_frozen: AUC = json entro 1e-06
+- valid/fusion_main: AUC = json entro 1e-06
+- valid/vision_head: AUC = json entro 1e-06
+- valid/fusion_head: AUC = json entro 1e-06
+- valid/layoutgkn: AUC = json entro 1e-06
+- test/graph_W: AUC = json entro 1e-06
+- test/vision_frozen: AUC = json entro 1e-06
+- test/fusion_main: AUC = json entro 1e-06
+- test/vision_head: AUC = json entro 1e-06
+- test/fusion_head: AUC = json entro 1e-06
+- test/layoutgkn: AUC = json entro 1e-06
+- 2000/2000 query appaiate fra tutti i sistemi, su valid e test
+- num_relevant identico fra i sistemi (ground truth condivisa)
+
+## note
+- valid: 2000 query appaiate su 6 sistemi (seed 42)
+- test: 2000 query appaiate su 7 sistemi (seed 42)
+
+## letti
+- results/reset_graphs/fusion/s42/fusion_valid/fusion_a0_*valid.npz
+- results/reset_graphs/fusion/s42/fusion_valid/fusion_a1_*valid.npz
+- results/reset_graphs/fusion_head/s42/fusion_valid/fusion_a1_*valid.npz
+- results/reset_graphs/fusion/s42/fusion_valid/fusion_a0.4_*valid.npz
+- results/reset_graphs/fusion_head/s42/fusion_valid/fusion_a0.3_*valid.npz
+- results/perquery/competitor_layoutgkn/asym/graph_lgkn_asym_s42_*valid.npz
+- results/reset_graphs/fusion/s42/select_valid.json
+- results/reset_graphs/fusion_head/s42/select_valid.json
+- results/competitors/layoutgkn/full/full.json
+- results/reset_graphs/fusion_head/s42/compare_valid.json
+- results/reset_graphs/fusion/s100042/select_valid.json
+- results/reset_graphs/fusion_head/s100042/select_valid.json
+- results/reset_graphs/fusion_head/s100042/compare_valid.json
+- results/reset_graphs/fusion/s200042/select_valid.json
+- results/reset_graphs/fusion_head/s200042/select_valid.json
+- results/reset_graphs/fusion_head/s200042/compare_valid.json
+- results/reset_graphs/fusion/s300042/select_valid.json
+- results/reset_graphs/fusion_head/s300042/select_valid.json
+- results/reset_graphs/fusion_head/s300042/compare_valid.json
+- results/reset_graphs/fusion/s42/fusion_test/fusion_a0_*test.npz
+- results/reset_graphs/fusion/s42/fusion_test/fusion_a1_*test.npz
+- results/reset_graphs/fusion_head/s42/fusion_test/fusion_a1_*test.npz
+- results/reset_graphs/fusion/s42/fusion_test/fusion_a0.4_*test.npz
+- results/reset_graphs/fusion_head/s42/fusion_test/fusion_a0.3_*test.npz
+- results/perquery/competitor_layoutgkn/asym_test/graph_lgkn_asym_s42_*test.npz
+- results/perquery/graph_test_B/graph_hist-baseline_base_*test.npz
+- results/reset_graphs/fusion/s42/select_test.json
+- results/reset_graphs/fusion_head/s42/select_test.json
+- results/competitors/layoutgkn/test/test.json
+- results/reset_graphs/fusion_head/s42/compare_test.json
+- results/reset_graphs/fusion/s100042/select_test.json
+- results/reset_graphs/fusion_head/s100042/select_test.json
+- results/reset_graphs/fusion_head/s100042/compare_test.json
+- results/reset_graphs/fusion/s200042/select_test.json
+- results/reset_graphs/fusion_head/s200042/select_test.json
+- results/reset_graphs/fusion_head/s200042/compare_test.json
+- results/reset_graphs/fusion/s300042/select_test.json
+- results/reset_graphs/fusion_head/s300042/select_test.json
+- results/reset_graphs/fusion_head/s300042/compare_test.json
+- results/reset_graphs/controls/replica/select_valid.json
+- results/reset_graphs/controls/crossenc/select_valid.json
+- results/reset_graphs/controls/replica/complementarity_valid.json
+- results/reset_graphs/controls/crossenc/complementarity_valid.json
+- results/reset_graphs/controls_test/confirm_C_test.json
+- results/reset_graphs/selection/final.json
+- results/reset_graphs/curve/summary_valid.json
+- results/reset_graphs/curve_test/summary_test.json
+
+## scritti
+- results/csv_reset/valid_summary.csv
+- results/csv_reset/valid_damage_curve.csv
+- results/csv_reset/valid_perquery_selfrr.csv
+- results/csv_reset/valid_perquery_full_ndcg10.csv
+- results/csv_reset/valid_full_metrics_all_k.csv
+- results/csv_reset/valid_paired_deltas.csv
+- results/csv_reset/valid_seeds.csv
+- results/csv_reset/test_summary.csv
+- results/csv_reset/test_damage_curve.csv
+- results/csv_reset/test_perquery_selfrr.csv
+- results/csv_reset/test_perquery_full_ndcg10.csv
+- results/csv_reset/test_full_metrics_all_k.csv
+- results/csv_reset/test_paired_deltas.csv
+- results/csv_reset/test_seeds.csv
+- results/csv_reset/valid_alpha_sweep.csv
+- results/csv_reset/controls_gain.csv
+- results/csv_reset/test_controls_outcome.csv
+- results/csv_reset/valid_graph_selection.csv
+- results/csv_reset/valid_curve.csv
+- results/csv_reset/test_curve.csv
+- results/csv_reset/test_curve_predictions.csv

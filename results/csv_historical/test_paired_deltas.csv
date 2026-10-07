@@ -1,0 +1,10 @@
+split,family,comparison,axis,metric,mean_a,mean_b,delta,ci_lo,ci_hi,p,p_note,n_pairs,note
+test,robustness_auc,fusion-graph,,auc_self_recovery,0.642446,0.469978,0.172468,0.162459,0.182634,0.0,,2000,metro di selezione
+test,robustness_auc,fusion-vision,,auc_self_recovery,0.642446,0.396497,0.245949,0.23594,0.255646,0.0,,2000,metro di selezione
+test,robustness_auc,graph-vision,,auc_self_recovery,0.469978,0.396497,0.073481,0.059268,0.08755,0.0,,2000,metro di selezione
+test,full_plan,fusion-graph,composition,ndcg@10,0.851189,0.858455,-0.007266,-0.00962,-0.00495,1.3676551618315792e-08,,2000,descrittivo e circolare (label dall'input del graph)
+test,full_plan,fusion-graph,topology,ndcg@10,0.685571,0.674838,0.010733,0.007419,0.014114,9.467373922489613e-10,,2000,descrittivo e circolare (label dall'input del graph)
+test,full_plan,fusion-graph,geometry,ndcg@10,0.954101,0.94943,0.004671,0.004027,0.005308,7.36255654166263e-39,,2000,descrittivo e circolare (label dall'input del graph)
+test,full_plan,fusion-vision,composition,ndcg@10,0.851189,0.814358,0.036831,0.034428,0.039262,1.8322447394798762e-157,,2000,descrittivo e circolare (label dall'input del graph)
+test,full_plan,fusion-vision,topology,ndcg@10,0.685571,0.632766,0.052805,0.049576,0.055997,1.838584221734521e-171,,2000,descrittivo e circolare (label dall'input del graph)
+test,full_plan,fusion-vision,geometry,ndcg@10,0.954101,0.937176,0.016925,0.016056,0.017813,1.1693000256868371e-228,,2000,descrittivo e circolare (label dall'input del graph)

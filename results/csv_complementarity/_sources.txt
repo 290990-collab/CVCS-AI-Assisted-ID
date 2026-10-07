@@ -1,0 +1,12 @@
+complementarity_by_query.csv — python -m src.evaluation.complementarity_by_query
+per-query files read (seed 42, weights from each select json):
+  results/final_pipeline/controls/crossenc/fusion_valid
+  results/final_pipeline/controls/replica/fusion_valid
+  results/final_pipeline/controls_test/crossenc/fusion_test
+  results/final_pipeline/controls_test/replica/fusion_test
+  results/final_pipeline/fusion/s42/fusion_test
+  results/final_pipeline/fusion/s42/fusion_valid
+  results/final_pipeline/fusion_head/s42/fusion_test
+  results/final_pipeline/fusion_head/s42/fusion_valid
+  results/final_pipeline/fusion_head_v2/s42/fusion_test
+  results/final_pipeline/fusion_head_v2/s42/fusion_valid

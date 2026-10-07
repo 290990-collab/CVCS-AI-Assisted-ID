@@ -1,0 +1,15 @@
+split,row,what,value,ci_lo,ci_hi,weight,source
+valid,g_fusion_main (vs replica),guadagno fusione principale,0.015509,0.011495,0.019594,0.4,results/reset_graphs/controls/replica/complementarity_valid.json
+valid,g_control_replica,guadagno controllo replica,0.018609,0.014799,0.02239,0.5,results/reset_graphs/controls/replica/complementarity_valid.json
+valid,D_replica_frozen,g(fusione principale) − g(controllo),-0.0031,-0.008921,0.002845,,results/reset_graphs/controls/replica/complementarity_valid.json
+valid,g_fusion_main (vs crossenc),guadagno fusione principale,0.015509,0.011495,0.019594,0.4,results/reset_graphs/controls/crossenc/complementarity_valid.json
+valid,g_control_crossenc,guadagno controllo crossenc,0.013491,0.010063,0.01697,0.6,results/reset_graphs/controls/crossenc/complementarity_valid.json
+valid,D_crossenc_frozen,g(fusione principale) − g(controllo),0.002018,-0.001945,0.00607,,results/reset_graphs/controls/crossenc/complementarity_valid.json
+test,g_F_H,guadagno F_H,0.030796,0.026339,0.035268,0.3,results/reset_graphs/controls_test/confirm_C_test.json
+test,g_C_rep,guadagno C_rep,0.016846,0.012795,0.020891,0.5,results/reset_graphs/controls_test/confirm_C_test.json
+test,g_C_enc,guadagno C_enc,0.015609,0.012023,0.01926,0.6,results/reset_graphs/controls_test/confirm_C_test.json
+test,D_rep,"g(F_H) − g(controllo), confermativo",0.01395,0.00769,0.020187,,results/reset_graphs/controls_test/confirm_C_test.json
+test,D_enc,"g(F_H) − g(controllo), confermativo",0.015188,0.010625,0.019714,,results/reset_graphs/controls_test/confirm_C_test.json
+test,g_F_frozen,guadagno fusione principale (descrittivo),0.012813,0.008746,0.016819,0.4,results/reset_graphs/controls_test/confirm_C_test.json
+test,D_rep_frozen,"g(fusione principale) − g(controllo), descrittivo",-0.004033,-0.009907,0.001906,,results/reset_graphs/controls_test/confirm_C_test.json
+test,D_enc_frozen,"g(fusione principale) − g(controllo), descrittivo",-0.002795,-0.007011,0.001443,,results/reset_graphs/controls_test/confirm_C_test.json

@@ -1,0 +1,38 @@
+# results/csv_reset_round2 — export del secondo giro di RESET GRAPHS (nessun numero nuovo)
+# generato: 2026-10-06T21:03:06
+# comando: python -m src.evaluation.export_csv_round2
+
+## come leggere
+- AUC = media del MRR di self-recovery su f 0.25/0.5/0.75; g = AUC(fusione) - AUC(ramo migliore della
+  coppia); D = g(fusione vision + W) - g(controllo d'insieme: W + seconda copia di W, W + sage/comb)
+- 'media 4 repliche' = media per query sulle 4 repliche, poi bootstrap (B = 10000, CI 95%)
+- vision: frozen = pespatial/gem/whiten congelato · head = head attuale (head_nowalls_conv) · head_v2 =
+  head residua solo sulla query, tre danni insieme (status.md §64.2)
+- valid = selezione e lettura provvisoria (§64.1, §64.3); test = lettura unica pre-registrata (§65-§66)
+- geometria: nDCG@10 a pianta intera, 6 pesature di §22, seed 42 (descrittivo, circolarità)
+
+## verifiche superate
+- valid: 32 fusioni per replica = select_valid.json (AUC e peso, entro 1e-09)
+- valid: geometria (1,1,1) ricalcolata = salvata nei per-query, 3 sistemi
+- test: 32 fusioni per replica = select_test.json (AUC e peso, entro 1e-09)
+- test: geometria (1,1,1) ricalcolata = salvata nei per-query, 4 sistemi
+
+## file letti
+- results/reset_graphs/round2/analysis_valid.json
+- results/reset_graphs/round2/head_v2_valid.json
+- results/reset_graphs/round2/geometry_valid.json
+- results/reset_graphs/round2/analysis_test.json
+
+## file scritti
+- ensemble_D.csv
+- mid_strength.csv
+- curve_4seeds.csv
+- curve_predictions.csv
+- w_vs_sage.csv
+- vision_damage_auc.csv
+- vision_damage_deltas.csv
+- head_v2_fusion.csv
+- full_plan_ndcg10.csv
+- geometry_weightings.csv
+- geometry_pairs.csv
+- test_predictions.csv

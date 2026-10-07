@@ -1,0 +1,20 @@
+# kwargs passati a PECoreEncoder(**kwargs)
+#
+# varianti timm: vit_pe_core_base_patch16_224.fb  (768d token / 1024d nativa)
+#                vit_pe_core_large_patch14_336.fb (336px)
+#                vit_pe_core_gigantic_patch14_448.fb (448px)
+# NOTA: i pesi arrivano da timm (hub HF `timm/vit_pe_core_base_patch16_224.fb`,
+# apache-2.0, non gated), NON dal repo `facebook/PE-Core-B16-224`, che pubblica
+# un .pt grezzo utilizzabile solo col pacchetto `perception_models` di Meta.
+# La normalizzazione e' mean=std=0.5 (non ImageNet): la legge il codice dal
+# pretrained_cfg, non va scritta qui.
+timm_name: vit_pe_core_base_patch16_224.fb
+image_size: 224          # BLOCCATA: checkpoint a risoluzione fissa (RoPE su griglia
+                         # 14x14). Un valore diverso solleva ValueError: per cambiare
+                         # risoluzione si cambia variante, come per SigLIP2.
+patch_size: 16           # lato della patch ViT: SOLO per il danno `patch` (timm vit_pe_core_base_patch16_224); evaluate lo confronta col modello caricato
+pooling: natural         # natural(attention pool + proiezione CLIP, 1024d) | mean | gem (768d)
+gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
+extraction_layer: -1     # layer da cui leggere i token: -1 ultimo, -2 penultimo, ...
+                         # Il paper di PE sostiene che le feature migliori NON sono
+                         # all'ultimo layer: qui l'ablation e' particolarmente motivata.

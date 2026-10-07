@@ -1,0 +1,5 @@
+split,seed,alpha_main,alpha_head,auc_graph_W,auc_vision_frozen,auc_vision_head,auc_fusion_main,auc_fusion_head,gain_main,gain_main_ci_lo,gain_main_ci_hi,gain_head,gain_head_ci_lo,gain_head_ci_hi,delta_H,delta_H_ci_lo,delta_H_ci_hi,oracle_main,outcome_head
+valid,42,0.4,0.3,0.905359,0.392038,0.538831,0.920867,0.934927,0.015509,0.011495,0.019594,0.029569,0.025022,0.034169,0.01406,0.010116,0.017979,0.914388,il guadagno cresce con la head
+valid,100042,0.4,0.4,0.905325,0.388623,0.539815,0.918833,0.934843,0.013508,0.009471,0.0177,0.029518,0.02471,0.034444,0.01601,0.011767,0.020434,0.913969,il guadagno cresce con la head
+valid,200042,0.4,0.4,0.91317,0.391706,0.544989,0.923068,0.936909,0.009899,0.005686,0.01415,0.02374,0.01904,0.028476,0.013841,0.009708,0.018212,0.921248,il guadagno cresce con la head
+valid,300042,0.4,0.4,0.903586,0.390451,0.538845,0.920632,0.93222,0.017046,0.013113,0.021084,0.028634,0.023915,0.033581,0.011588,0.00726,0.015834,0.912589,il guadagno cresce con la head

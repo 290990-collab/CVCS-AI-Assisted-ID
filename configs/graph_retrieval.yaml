@@ -1,0 +1,40 @@
+# configs/graph_retrieval.yaml
+# Config CONDIVISA della valutazione retrieval del ramo graph (tutti gli encoder).
+#
+# Come per configs/graph_models/: il ramo graph non ha (ancora) un config-loader,
+# quindi questo YAML non viene letto direttamente da graph_evaluate.py ma tradotto
+# in flag argparse da scripts/graph/04_eval_gnn.sh. Le chiavi corrispondono 1:1
+# agli argomenti di `src/graph/evaluation/graph_evaluate.py`.
+#
+# I parametri del MODELLO non stanno qui: vengono da configs/graph_models/<name>.yaml
+# (gli STESSI usati dal training in 03), cosi' il checkpoint si ricarica con
+# l'architettura giusta per costruzione.
+#
+# Protocollo (identico al ramo vision): query campionate dallo split `split`
+# (default valid; il test si legge solo per il numero finale),
+# gallery = intero snapshot, self-match escluso, metriche per-asse (nDCG@K +
+# Recall/mAP@K) contro l'intera gallery.
+
+# --- valutazione ---
+num_queries: 2000            # query campionate (come il benchmark vision: 2000 dal test)
+seed: 42                     # seed del campionamento query (riproducibile)
+split: valid                 # train | valid | test | all -- da dove campionare le query.
+                             # Default `valid` (24 ago, A1): il test non sceglie nulla,
+                             # si passa a test solo per il numero finale.
+k_values: [1, 5, 10, 100]    # profondita' K per nDCG/Recall/mAP
+gallery_names: results/shared_gallery.json         # inner join fra i rami (fase B.3, 25 ago 2026):
+                             #   null = gallery intera (67.405 grafi, comportamento storico)
+                             #   path = results/shared_gallery.json da `python -m src.evaluation.gallery_join`
+                             # ⚠️ deve essere lo STESSO file usato dal ramo vision: e' cio' che rende
+                             # identico il gallery_sha1 dei due rami e appaiato il confronto cross-ramo
+
+# --- infra ---
+batch_size: 512              # batch del forward sulla gallery
+
+# --- baseline training-free ---
+# Se true, 04_eval_gnn.sh valuta anche la baseline `--baseline-hist`
+# (type_histogram L2-norm, nessun checkpoint): riferimento minimo che una GNN
+# utile deve battere su topologia/geometria (sulla composizione la baseline e'
+# l'oracolo per costruzione). Viene lanciata una volta a inizio job (run
+# completa) oppure da sola con `sbatch 04_eval_gnn.sh hist`.
+baseline_hist: true

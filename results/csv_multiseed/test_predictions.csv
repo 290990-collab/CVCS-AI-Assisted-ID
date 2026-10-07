@@ -1,0 +1,46 @@
+id,label,esito
+A-replica,"A: vision congelato equivalente all'effetto d'insieme (la seconda copia, ±0.005)",non confermata
+A-crossenc,"A: vision congelato equivalente all'effetto d'insieme (l'altro encoder (SAGE), ±0.005)",confermata
+B,"B: vision con head attuale oltre l'effetto d'insieme, confermato su 4 repliche",confermata
+C-gat_t05+frozen,C: gat_t05+frozen oltre la seconda copia,confermata
+C-gat_ref+head,C: gat_ref+head oltre la seconda copia,confermata
+D,D: U rovesciata confermata (E1 ed E2 sulla media dei 4 seed),confermata
+E,E: W più robusto di sage/comb,confermata
+H1-§64,H (1): v2 non peggiore del congelato (media dei tre danni),confermata
+H1-vision_congelato,H (1): v2 meglio di vision_congelato sulla media dei tre danni (CI > 0),confermata
+H1-vision_head,H (1): v2 meglio di vision_head sulla media dei tre danni (CI > 0),confermata
+H2,H (2): la v2 migliora la fusione con W (CI > 0),confermata
+H3,"H (3): v2 oltre l'effetto d'insieme, confermato su 4 repliche",confermata
+P-A-replica,P-A: congelato non oltre l'effetto d'insieme (la seconda copia),confermata
+P-A-crossenc,P-A: congelato non oltre l'effetto d'insieme (l'altro encoder (SAGE)),confermata
+P-C-gat_t05+frozen,P-C: gat_t05+frozen oltre anche l'altro encoder,confermata
+P-C-gat_ref+head,P-C: gat_ref+head oltre anche l'altro encoder,confermata
+P-H1-vision_congelato-nowalls-random,P-H1: v2 meglio di vision_congelato su nowalls-random,confermata
+P-H1-vision_congelato-crop,P-H1: v2 meglio di vision_congelato su crop,confermata
+P-H1-vision_congelato-patch,P-H1: v2 meglio di vision_congelato su patch,confermata
+P-H1-vision_head-nowalls-random,P-H1: v2 meglio di vision_head su nowalls-random,confermata
+P-H1-vision_head-crop,P-H1: v2 meglio di vision_head su crop,confermata
+P-H1-vision_head-patch,P-H1: v2 meglio di vision_head su patch,confermata
+P-H2-s42,P-H2: fusione v2 s42 entro ±0.02 dal valid,confermata
+P-H2-s100042,P-H2: fusione v2 s100042 entro ±0.02 dal valid,confermata
+P-H2-s200042,P-H2: fusione v2 s200042 entro ±0.02 dal valid,confermata
+P-H2-s300042,P-H2: fusione v2 s300042 entro ±0.02 dal valid,confermata
+"P-I-W vs vision_congelato-[1.0, 1.0, 1.0]","P-I: W vs vision_congelato, pesatura [1.0, 1.0, 1.0]",confermata
+"P-I-W vs vision_congelato-[1.0, 0.0, 0.0]","P-I: W vs vision_congelato, pesatura [1.0, 0.0, 0.0]",confermata
+"P-I-W vs vision_congelato-[0.0, 1.0, 0.0]","P-I: W vs vision_congelato, pesatura [0.0, 1.0, 0.0]",confermata
+"P-I-W vs vision_congelato-[0.0, 0.0, 1.0]","P-I: W vs vision_congelato, pesatura [0.0, 0.0, 1.0]",confermata
+"P-I-W vs vision_congelato-[1.0, 1.0, 0.0]","P-I: W vs vision_congelato, pesatura [1.0, 1.0, 0.0]",confermata
+"P-I-W vs vision_congelato-[1.0, 1.0, 2.0]","P-I: W vs vision_congelato, pesatura [1.0, 1.0, 2.0]",confermata
+"P-I-W vs vision_head-[1.0, 1.0, 1.0]","P-I: W vs vision_head, pesatura [1.0, 1.0, 1.0]",confermata
+"P-I-W vs vision_head-[1.0, 0.0, 0.0]","P-I: W vs vision_head, pesatura [1.0, 0.0, 0.0]",confermata
+"P-I-W vs vision_head-[0.0, 1.0, 0.0]","P-I: W vs vision_head, pesatura [0.0, 1.0, 0.0]",confermata
+"P-I-W vs vision_head-[0.0, 0.0, 1.0]","P-I: W vs vision_head, pesatura [0.0, 0.0, 1.0]",confermata
+"P-I-W vs vision_head-[1.0, 1.0, 0.0]","P-I: W vs vision_head, pesatura [1.0, 1.0, 0.0]",confermata
+"P-I-W vs vision_head-[1.0, 1.0, 2.0]","P-I: W vs vision_head, pesatura [1.0, 1.0, 2.0]",confermata
+P-G-B-replica,P-G: B-replica sopra il rumore fra training,confermata
+P-G-B-crossenc,P-G: B-crossenc sopra il rumore fra training,confermata
+P-G-H2,P-G: H2 sopra il rumore fra training,confermata
+P-G-H3-replica,P-G: H3-replica sopra il rumore fra training,confermata
+P-G-H3-crossenc,P-G: H3-crossenc sopra il rumore fra training,confermata
+P-G-A-replica,P-G: A-replica entro il rumore fra training,non confermata
+P-G-A-crossenc,P-G: A-crossenc entro il rumore fra training,confermata

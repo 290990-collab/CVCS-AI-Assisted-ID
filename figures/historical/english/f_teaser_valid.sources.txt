@@ -1,0 +1,19 @@
+# f_teaser_valid — figura del report
+data:     2026-10-01 11:17
+comando:  python -m src.figures.teaser_valid --lang en --out-dir figures/english
+
+numeri della figura:
+  split: valid · danno: nowalls-random f=0.5
+  query: 10340 (4 stanze tolte: [1, 3, 6, 7])
+  regola di scelta: prima in ordine alfabetico fra le 423 query in cui la fusione mette l'originale al 1° posto e nessuno dei due rami lo fa
+  vision   originale al posto >100 | primi 5: 52896, 28555, 36255, 26165, 25874
+  graph    originale al posto 3 | primi 5: 57381, 20396, 10340, 2376, 21776
+  fusione  originale al posto 1 | primi 5: 10340, 20396, 23526, 52095, 57381
+
+file letti:
+  results/perquery/fusion_valid/fusion_a1_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0_partial-nowalls-random-f0.5_valid.npz
+  results/perquery/fusion_valid/fusion_a0.6_partial-nowalls-random-f0.5_valid.npz
+  results/queryvec/valid/vision_pespatial_gem_whiten-train_partial-nowalls-random-f0.5_valid.npz
+  results/shared_gallery.json
+  configs/vision_retrieval.yaml

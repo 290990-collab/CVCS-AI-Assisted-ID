@@ -1,0 +1,13 @@
+# f_reset_gain_seeds — figura del report
+data:     2026-10-05 23:02
+comando:  python -m src.figures.reset_results all --lang en --out-dir figures/reset/english
+
+numeri della figura:
+  main valid: s42 +0.0155  s100042 +0.0135  s200042 +0.0099  s300042 +0.0170
+  main test: s42 +0.0128  s100042 +0.0123  s200042 +0.0139  s300042 +0.0110
+  head valid: s42 +0.0296  s100042 +0.0295  s200042 +0.0237  s300042 +0.0286
+  head test: s42 +0.0308  s100042 +0.0275  s200042 +0.0276  s300042 +0.0258
+
+file letti:
+  results/csv_reset/valid_seeds.csv
+  results/csv_reset/test_seeds.csv

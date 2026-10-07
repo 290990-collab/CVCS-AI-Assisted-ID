@@ -1,0 +1,63 @@
+# results/csv — export dei risultati finali (nessun numero nuovo)
+# generato: 2026-09-28T17:08:39
+# comando: python -m src.evaluation.export_csv --out-dir results/csv
+
+## come leggere i valori
+- `self_rr`: reciprocal rank della pianta ORIGINALE quando la query è la sua
+  versione danneggiata (self-recovery). 1.0 = ritrovata al primo posto, 0 = fuori
+  dai primi 100. `robustness_auc` = media di self_rr sulle frazioni 0.25/0.5/0.75
+  (f=0.0 escluso: è il tetto dei dati, non misura robustezza).
+- `fraction` = quota di stanze tolte alla query (vision: svuotate senza muri).
+- `num_relevant` = quante piante della gallery sono nella stessa classe di
+  equivalenza esatta della query (self escluso). 0 = query singleton;
+  -1 = asse continuo (geometry), nessuna classe.
+- nDCG usa rilevanza GRADUATA, quindi è definito anche sulle singleton;
+  `recall` e `map` no: sono vuoti lì e su tutto l'asse geometry.
+- PRECISIONE: le tabelle riassuntive sono arrotondate a 6 cifre (si leggono),
+  i file per-query NO. Centinaia di query pareggiano esattamente fra due
+  sistemi: su valori arrotondati un `>` conta quei pareggi come vittorie
+  (~180 righe su 2000 nel confronto con l'oracolo). Conteggi e confronti
+  si fanno sui file per-query, non sulle tabelle.
+- I delta `full_plan` sono DESCRITTIVI: le label degli assi derivano da
+  rType/rEdge, cioè dall'input del ramo graph (circolarità dichiarata).
+
+## verifiche superate
+- ogni media di robustezza coincide con select_*.json entro 1e-06
+- `num_relevant` identico fra i sistemi su ogni asse (ground truth condivisa)
+- query appaiate per nome fra tutti i sistemi
+
+## note
+- test: 2000 query appaiate su 4 sistemi
+- vision R (3 danni, test) = 0.521030
+- replica graph: differenza media AUC +0.000390
+
+## letti
+- results/fusion/select_test.json
+- results/fusion/select_valid.json
+- results/fusion/select_visionvision_valid.json
+- results/fusion/select_graphgraph_valid.json
+- results/perquery/fusion_test/fusion_a1_partial-nowalls-random-f*_test.npz, results/perquery/fusion_test/fusion_a1_full_test.npz
+- results/perquery/fusion_test/fusion_a0_partial-nowalls-random-f*_test.npz, results/perquery/fusion_test/fusion_a0_full_test.npz
+- results/perquery/fusion_test/fusion_a0.6_partial-nowalls-random-f*_test.npz, results/perquery/fusion_test/fusion_a0.6_full_test.npz
+- results/perquery/graph_test_B/graph_hist-baseline_base_partial-random-f*_test.npz, results/perquery/graph_test_B/graph_hist-baseline_base_full_test.npz
+- results/perquery/fusion_valid/fusion_a1_partial-nowalls-random-f*_valid.npz, results/perquery/fusion_valid/fusion_a1_full_valid.npz
+- results/perquery/fusion_valid/fusion_a0_partial-nowalls-random-f*_valid.npz, results/perquery/fusion_valid/fusion_a0_full_valid.npz
+- results/perquery/fusion_valid/fusion_a0.6_partial-nowalls-random-f*_valid.npz, results/perquery/fusion_valid/fusion_a0.6_full_valid.npz
+- results/perquery/vision_test_B/vision_pespatial_gem_whiten-train_partial-{nowalls-random,crop,patch}-f*_test.npz
+- results/perquery/graph_test_B/graph_gat_asymrob_partial-random-f*_test.npz
+- results/random_floor/random_graph_test_seed0.npz  (null `random`, pianta intera)
+
+## scritti
+- results/csv/test_summary.csv
+- results/csv/test_damage_curve.csv
+- results/csv/test_perquery_selfrr.csv
+- results/csv/test_perquery_full_ndcg10.csv
+- results/csv/test_full_metrics_all_k.csv
+- results/csv/test_vision_damage_kinds.csv
+- results/csv/test_paired_deltas.csv
+- results/csv/test_oracle.csv
+- results/csv/test_graph_reproducibility.csv
+- results/csv/valid_summary.csv
+- results/csv/valid_damage_curve.csv
+- results/csv/valid_perquery_selfrr.csv
+- results/csv/valid_alpha_sweep.csv

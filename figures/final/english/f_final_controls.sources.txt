@@ -1,0 +1,19 @@
+# f_reset_controls — figura del report
+data:     2026-10-05 23:02
+comando:  python -m src.figures.reset_results all --lang en --out-dir figures/reset/english
+
+numeri della figura:
+  ctrl_frozen valid: +0.0155 [+0.0115, +0.0196]
+  ctrl_frozen test: +0.0128 [+0.0087, +0.0168]
+  ctrl_rep valid: +0.0186 [+0.0148, +0.0224]
+  ctrl_rep test: +0.0168 [+0.0128, +0.0209]
+  ctrl_enc valid: +0.0135 [+0.0101, +0.0170]
+  ctrl_enc test: +0.0156 [+0.0120, +0.0193]
+  ctrl_head valid: +0.0296 [+0.0250, +0.0342]
+  ctrl_head test: +0.0308 [+0.0263, +0.0353]
+  test D_rep: +0.0140 [+0.0077, +0.0202]
+  test D_enc: +0.0152 [+0.0106, +0.0197]
+
+file letti:
+  results/csv_reset/controls_gain.csv
+  results/csv_reset/valid_seeds.csv

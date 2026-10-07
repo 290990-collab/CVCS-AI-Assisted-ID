@@ -1,0 +1,6 @@
+split,seed,a,b,question,mean_a,mean_b,delta,ci_lo,ci_hi,p_wilcoxon,n_pairs
+valid,42,fusion_main,graph_W,la fusione principale aiuta?,0.920867,0.905359,0.015509,0.011495,0.019594,1.8967732918383297e-14,2000
+valid,42,fusion_head,graph_W,la fusione con head aiuta?,0.934927,0.905359,0.029569,0.025022,0.034169,2.2384249313539667e-34,2000
+valid,42,fusion_head,fusion_main,Δ_H: il guadagno cresce con la head?,0.934927,0.920867,0.01406,0.010116,0.017979,6.747595332694384e-14,2000
+valid,42,vision_head,vision_frozen,head contro vision congelato,0.538831,0.392038,0.146792,0.136666,0.15675,4.285080937065405e-161,2000
+valid,42,layoutgkn,graph_W,LayoutGKN contro W,0.607329,0.905359,-0.29803,-0.307779,-0.288273,4.35396710673083e-276,2000

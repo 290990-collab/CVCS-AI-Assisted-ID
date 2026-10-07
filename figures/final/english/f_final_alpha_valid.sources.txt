@@ -1,0 +1,16 @@
+# f_reset_alpha_valid — figura del report
+data:     2026-10-05 23:02
+comando:  python -m src.figures.reset_results all --lang en --out-dir figures/reset/english
+
+numeri della figura:
+  fusion_main/s42: α* 0.4 AUC 0.9209 · α=0 0.9054 · α=1 0.3920
+  fusion_main/s100042: α* 0.4 AUC 0.9188 · α=0 0.9053 · α=1 0.3886
+  fusion_main/s200042: α* 0.4 AUC 0.9231 · α=0 0.9132 · α=1 0.3917
+  fusion_main/s300042: α* 0.4 AUC 0.9206 · α=0 0.9036 · α=1 0.3905
+  fusion_head/s42: α* 0.3 AUC 0.9349 · α=0 0.9054 · α=1 0.5388
+  fusion_head/s100042: α* 0.4 AUC 0.9348 · α=0 0.9053 · α=1 0.5398
+  fusion_head/s200042: α* 0.4 AUC 0.9369 · α=0 0.9132 · α=1 0.5450
+  fusion_head/s300042: α* 0.4 AUC 0.9322 · α=0 0.9036 · α=1 0.5388
+
+file letti:
+  results/csv_reset/valid_alpha_sweep.csv

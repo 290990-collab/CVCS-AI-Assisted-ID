@@ -1,0 +1,10 @@
+# kwargs passati a DINOv2Encoder(**kwargs)
+#
+# varianti: facebook/dinov2-small (384d) | facebook/dinov2-base (768d) |
+#           facebook/dinov2-large (1024d)
+hf_name: facebook/dinov2-base
+image_size: 224          # risoluzione nativa dei checkpoint dinov2-* (sweep: multipli di 14)
+patch_size: 14           # lato della patch ViT: SOLO per il danno `patch` (verificato: config.json HF di facebook/dinov2-base); evaluate lo confronta col modello caricato
+pooling: natural         # natural(CLS) | mean | gem
+gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
+extraction_layer: -1     # layer da cui leggere i token: -1 ultimo, -2 penultimo, ...

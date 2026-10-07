@@ -1,0 +1,14 @@
+# f_reset_pipeline — figura del report
+data:     2026-10-05 23:03
+comando:  python -m src.figures.pipeline --setup reset --lang en --name f_reset_pipeline --out-dir figures/reset/english
+
+numeri della figura:
+  vision 768-d + graph 128-d → fusione 896-d
+  α = 0.4 (da results/reset_graphs/fusion/s42/select_valid.json)
+  gallery condivisa: 67405 piante
+
+file letti:
+  results/queryvec/valid/vision_pespatial_gem_whiten-train_partial-nowalls-random-f0.5_valid.npz
+  results/reset_graphs/queryvec/valid/s42/graph_gat_rg_comb_s42_partial-random-f0.5_valid.npz
+  results/shared_gallery.json
+  results/reset_graphs/fusion/s42/select_valid.json

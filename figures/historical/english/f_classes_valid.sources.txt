@@ -1,0 +1,12 @@
+# f_classes_valid — figura del report
+data:     2026-10-01 11:17
+comando:  python -m src.figures.classes_valid --lang en --out-dir figures/english
+
+numeri della figura:
+  query: 2000 · gallery: 67405
+  composition  mediana 5007 · media 5839 · max 15251 · singleton (0) 6 · quantili 10/90: 118/15251
+  topology     mediana 19 · media 198 · max 2633 · singleton (0) 311 · quantili 10/90: 0/426
+
+file letti:
+  results/perquery/fusion_valid/fusion_a0.6_full_valid.npz
+  results/perquery/fusion_valid/fusion_a0_full_valid.npz

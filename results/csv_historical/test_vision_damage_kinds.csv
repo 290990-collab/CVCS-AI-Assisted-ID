@@ -1,0 +1,5 @@
+split,system,strategy,auc,self_rr_f0.25,self_rr_f0.5,self_rr_f0.75,n_queries
+test,vision,nowalls-random,0.396497,0.821601,0.303676,0.064214,2000
+test,vision,crop,0.654282,0.962449,0.829171,0.171225,2000
+test,vision,patch,0.512311,0.958295,0.56622,0.012419,2000
+test,vision,mean(R),0.52103,,,,2000

@@ -1,0 +1,5 @@
+split,scope,axis,star_mean,oracle_mean,delta_star_minus_oracle,n_star_exceeds_oracle,n
+test,robustness_auc,,0.642446,0.569335,0.073111,1218,2000
+test,full_plan,composition,0.851189,0.870245,-0.019057,697,2000
+test,full_plan,topology,0.685571,0.696319,-0.010748,864,2000
+test,full_plan,geometry,0.954101,0.953661,0.00044,1049,2000

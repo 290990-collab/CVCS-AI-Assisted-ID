@@ -1,0 +1,20 @@
+# f_round2_ensemble — figura del report
+data:     2026-10-06 21:04
+comando:  python -m src.figures.round2_results all --lang en --out-dir figures/reset_round2/english
+
+numeri della figura:
+  replica frozen valid: D -0.0026 [-0.0054, +0.0004] · entro il rumore fra training · non concludente
+  replica frozen test: D -0.0038 [-0.0067, -0.0010] · sopra il rumore fra training · sotto l'effetto d'insieme
+  replica head valid: D +0.0113 [+0.0082, +0.0145] · sopra il rumore fra training · confermato su 4 repliche
+  replica head test: D +0.0116 [+0.0085, +0.0148] · sopra il rumore fra training · confermato su 4 repliche
+  replica head_v2 valid: D +0.0211 [+0.0182, +0.0243] · sopra il rumore fra training · confermato su 4 repliche
+  replica head_v2 test: D +0.0203 [+0.0171, +0.0235] · sopra il rumore fra training · confermato su 4 repliche
+  crossenc frozen valid: D -0.0005 [-0.0031, +0.0023] · entro il rumore fra training · equivalente all'effetto d'insieme
+  crossenc frozen test: D -0.0020 [-0.0045, +0.0005] · entro il rumore fra training · equivalente all'effetto d'insieme
+  crossenc head valid: D +0.0134 [+0.0106, +0.0162] · sopra il rumore fra training · confermato su 4 repliche
+  crossenc head test: D +0.0135 [+0.0107, +0.0162] · sopra il rumore fra training · confermato su 4 repliche
+  crossenc head_v2 valid: D +0.0232 [+0.0205, +0.0260] · sopra il rumore fra training · confermato su 4 repliche
+  crossenc head_v2 test: D +0.0221 [+0.0195, +0.0248] · sopra il rumore fra training · confermato su 4 repliche
+
+file letti:
+  results/csv_reset_round2/ensemble_D.csv

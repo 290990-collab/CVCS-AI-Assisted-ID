@@ -1,0 +1,12 @@
+family,label,predicted_sign,mean,ci_lo,ci_hi,outcome
+E1_falling_frozen,g_F(gat/t05) > g_F(gat/ref),+,0.046114,0.037464,0.054785,confermata
+E1_falling_frozen,g_F(gat/ref) > g_F(gat/t01),+,0.097405,0.088072,0.106497,confermata
+E1_falling_frozen,g_F(gat/t01) > g_F(W),+,0.041429,0.035545,0.047438,confermata
+E2_rising_frozen,g_F(gat/t05) > g_F(gcn/ref),+,0.083582,0.070851,0.096597,confermata
+E3_head_vs_frozen,g_H - g_F > 0 per gat/ref,+,0.071214,0.056176,0.086236,confermata
+E3_head_vs_frozen,g_H - g_F > 0 per gat/t01,+,0.066499,0.060506,0.072492,confermata
+E3_head_vs_frozen,g_H - g_F > 0 per W,+,0.018179,0.013889,0.022493,confermata
+E3_head_vs_frozen,g_H - g_F < 0 per gcn/ref,-,-0.018593,-0.026491,-0.010547,confermata
+E4,(g_H - g_F)(gat/ref) > (g_H - g_F)(W),+,0.053035,0.037469,0.068357,confermata
+descrittivo,g_H − g_F per gat/t05,,-0.020256,-0.035306,-0.005155,
+forma,curva a U rovesciata confermata sul test,,,,,

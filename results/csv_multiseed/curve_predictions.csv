@@ -1,0 +1,19 @@
+split,group,prediction,mean,ci_lo,ci_hi,esito,n_seeds_confirmed,noise_verdict
+valid,E1_falling_frozen,g_F(gat/t05) > g_F(gat/ref),0.055385424256479986,0.048121612465492215,0.06264124250778987,confermata,4,sopra il rumore fra training
+valid,E1_falling_frozen,g_F(gat/ref) > g_F(gat/t01),0.0891335431242672,0.08375778905379992,0.09444892183649936,confermata,4,sopra il rumore fra training
+valid,E1_falling_frozen,g_F(gat/t01) > g_F(W),0.04501399778015912,0.041641326209656354,0.04835588616485184,confermata,4,sopra il rumore fra training
+valid,E2_rising_frozen,g_F(gat/t05) > g_F(gcn/ref),0.08868243125989102,0.0838509292232125,0.0935809736672653,confermata,4,sopra il rumore fra training
+valid,E3_head_vs_frozen,g_H - g_F > 0 per gat/ref,0.07493576148621893,0.06709138378614832,0.08268962147170193,confermata,4,
+valid,E3_head_vs_frozen,g_H - g_F > 0 per gat/t01,0.06689456478514087,0.06339918683651097,0.07048722407595875,confermata,4,
+valid,E3_head_vs_frozen,g_H - g_F > 0 per W,0.013586539170083898,0.011033344085694018,0.0162061958983492,confermata,4,
+valid,E3_head_vs_frozen,g_H - g_F < 0 per gcn/ref,-0.017734355227323247,-0.022018862989797106,-0.013446788196011524,confermata,4,
+valid,E4,(g_H - g_F)(gat/ref) > (g_H - g_F)(W),0.061349222316135044,0.053395338261849244,0.06919630239498996,confermata,4,
+test,E1_falling_frozen,g_F(gat/t05) > g_F(gat/ref),0.052265794292014715,0.04614432218519215,0.058332182535441826,confermata,4,sopra il rumore fra training
+test,E1_falling_frozen,g_F(gat/ref) > g_F(gat/t01),0.08936580712045543,0.08419004419998091,0.09441771799362225,confermata,4,sopra il rumore fra training
+test,E1_falling_frozen,g_F(gat/t01) > g_F(W),0.04451512556212644,0.04123802381041266,0.04781621934254945,confermata,4,sopra il rumore fra training
+test,E2_rising_frozen,g_F(gat/t05) > g_F(gcn/ref),0.08734911014314276,0.08189801082042007,0.09287750936366597,confermata,4,sopra il rumore fra training
+test,E3_head_vs_frozen,g_H - g_F > 0 per gat/ref,0.07622171394325172,0.06825750237534521,0.08410706453071518,confermata,4,
+test,E3_head_vs_frozen,g_H - g_F > 0 per gat/t01,0.06576727805938572,0.06210924809997378,0.06946274494760533,confermata,4,
+test,E3_head_vs_frozen,g_H - g_F > 0 per W,0.014824527320762474,0.012246943232553894,0.017435739017155717,confermata,4,
+test,E3_head_vs_frozen,g_H - g_F < 0 per gcn/ref,-0.01462622478515065,-0.018940525201936058,-0.010321185209510924,confermata,4,
+test,E4,(g_H - g_F)(gat/ref) > (g_H - g_F)(W),0.061397186622489254,0.05349516124287039,0.06942941892961195,confermata,4,

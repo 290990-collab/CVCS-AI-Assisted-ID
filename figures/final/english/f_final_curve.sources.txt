@@ -1,0 +1,13 @@
+# f_reset_curve — figura del report
+data:     2026-10-05 23:02
+comando:  python -m src.figures.reset_results all --lang en --out-dir figures/reset/english
+
+numeri della figura:
+  frozen: vision valid 0.3920 · test gcn/ref 0.168→+0.1142  gat/t05 0.404→+0.1978  gat/ref 0.513→+0.1516  gat/t01 0.753→+0.0542  gat/comb 0.903→+0.0128
+  head: vision valid 0.5388 · test gcn/ref 0.168→+0.0956  gat/t05 0.404→+0.1775  gat/ref 0.513→+0.2229  gat/t01 0.753→+0.1207  gat/comb 0.902→+0.0310
+  storico (valid, gat/asymrob): graph 0.4562, guadagno +0.1740 (da results/fusion/select_valid.json)
+
+file letti:
+  results/csv_reset/valid_curve.csv
+  results/csv_reset/test_curve.csv
+  results/fusion/select_valid.json

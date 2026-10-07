@@ -1,0 +1,71 @@
+# f_damage_test_seeds — figura del report
+data:     2026-10-01 17:27
+comando:  python -m src.figures.damage_test_seeds --lang en --out-dir figures/english
+
+numeri della figura:
+  split: test · repliche: 0, 100042, 200042, 300042 (0 = storica)
+  banda: ± 1 sd (ddof=1) FRA repliche, non CI bootstrap sulle query
+  baseline hist: solo replica 0 — AUC 0.0013
+  AUC verificate contro results/fusion/seeds/summary.json (tolleranza 1e-06)
+  fusion  AUC 0.6401 ± 0.0031 (per replica: 0.6424, 0.6426, 0.6392, 0.6360) | f=0.0: 0.9791 ± 0.0004 [0.9786–0.9795]  f=0.25: 0.9554 ± 0.0018 [0.9540–0.9580]  f=0.5: 0.7352 ± 0.0036 [0.7310–0.7395]  f=0.75: 0.2295 ± 0.0048 [0.2231–0.2333]
+  graph   AUC 0.4697 ± 0.0035 (per replica: 0.4700, 0.4659, 0.4742, 0.4687) | f=0.0: 0.9762 ± 0.0014 [0.9748–0.9779]  f=0.25: 0.8650 ± 0.0029 [0.8620–0.8690]  f=0.5: 0.4456 ± 0.0063 [0.4387–0.4536]  f=0.75: 0.0985 ± 0.0053 [0.0940–0.1048]
+  vision  AUC 0.3916 ± 0.0045 (per replica: 0.3965, 0.3914, 0.3928, 0.3856) | f=0.0: 0.9701 ± 0.0000 [0.9701–0.9701]  f=0.25: 0.8208 ± 0.0054 [0.8129–0.8247]  f=0.5: 0.2951 ± 0.0068 [0.2879–0.3037]  f=0.75: 0.0588 ± 0.0037 [0.0561–0.0642]
+
+file letti:
+  results/fusion/select_valid.json
+  results/perquery/fusion_test/fusion_a0.6_partial-nowalls-random-f0.0_test.npz
+  results/perquery/fusion_test/fusion_a0.6_partial-nowalls-random-f0.25_test.npz
+  results/perquery/fusion_test/fusion_a0.6_partial-nowalls-random-f0.5_test.npz
+  results/perquery/fusion_test/fusion_a0.6_partial-nowalls-random-f0.75_test.npz
+  results/perquery/fusion_test/fusion_a0_partial-nowalls-random-f0.0_test.npz
+  results/perquery/fusion_test/fusion_a0_partial-nowalls-random-f0.25_test.npz
+  results/perquery/fusion_test/fusion_a0_partial-nowalls-random-f0.5_test.npz
+  results/perquery/fusion_test/fusion_a0_partial-nowalls-random-f0.75_test.npz
+  results/perquery/fusion_test/fusion_a1_partial-nowalls-random-f0.0_test.npz
+  results/perquery/fusion_test/fusion_a1_partial-nowalls-random-f0.25_test.npz
+  results/perquery/fusion_test/fusion_a1_partial-nowalls-random-f0.5_test.npz
+  results/perquery/fusion_test/fusion_a1_partial-nowalls-random-f0.75_test.npz
+  results/fusion/seeds/s100042/select_valid.json
+  results/perquery/seeds/s100042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.0_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.25_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.5_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.75_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a0_partial-nowalls-random-f0.0_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a0_partial-nowalls-random-f0.25_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a0_partial-nowalls-random-f0.5_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a0_partial-nowalls-random-f0.75_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a1_partial-nowalls-random-f0.0_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a1_partial-nowalls-random-f0.25_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a1_partial-nowalls-random-f0.5_test.npz
+  results/perquery/seeds/s100042/fusion_test/fusion_a1_partial-nowalls-random-f0.75_test.npz
+  results/fusion/seeds/s200042/select_valid.json
+  results/perquery/seeds/s200042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.0_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.25_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.5_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.75_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a0_partial-nowalls-random-f0.0_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a0_partial-nowalls-random-f0.25_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a0_partial-nowalls-random-f0.5_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a0_partial-nowalls-random-f0.75_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a1_partial-nowalls-random-f0.0_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a1_partial-nowalls-random-f0.25_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a1_partial-nowalls-random-f0.5_test.npz
+  results/perquery/seeds/s200042/fusion_test/fusion_a1_partial-nowalls-random-f0.75_test.npz
+  results/fusion/seeds/s300042/select_valid.json
+  results/perquery/seeds/s300042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.0_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.25_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.5_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a0.6_partial-nowalls-random-f0.75_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a0_partial-nowalls-random-f0.0_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a0_partial-nowalls-random-f0.25_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a0_partial-nowalls-random-f0.5_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a0_partial-nowalls-random-f0.75_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a1_partial-nowalls-random-f0.0_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a1_partial-nowalls-random-f0.25_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a1_partial-nowalls-random-f0.5_test.npz
+  results/perquery/seeds/s300042/fusion_test/fusion_a1_partial-nowalls-random-f0.75_test.npz
+  results/perquery/graph_test_B/graph_hist-baseline_base_partial-random-f0.0_test.npz
+  results/perquery/graph_test_B/graph_hist-baseline_base_partial-random-f0.25_test.npz
+  results/perquery/graph_test_B/graph_hist-baseline_base_partial-random-f0.5_test.npz
+  results/perquery/graph_test_B/graph_hist-baseline_base_partial-random-f0.75_test.npz
+  results/fusion/seeds/summary.json

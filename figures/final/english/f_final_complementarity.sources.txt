@@ -1,0 +1,17 @@
+# f_final_complementarity — figura del report
+data:     2026-10-07 18:14
+comando:  python -m src.figures.complementarity all --out-dir figures/final/english
+
+numeri della figura:
+  W + head v2: g +0.0366 · ensemble (graph + its 2nd copy) +0.0163 · CG +0.0203 [+0.0171, +0.0235]
+  W + head: g +0.0279 · ensemble (graph + its 2nd copy) +0.0163 · CG +0.0116 [+0.0085, +0.0148]
+  W + frozen: g +0.0125 · ensemble (graph + its 2nd copy) +0.0163 · CG -0.0038 [-0.0067, -0.0010]
+  gat/t05 (0.39) + head: g +0.1775 · ensemble (graph + SAGE with the same recipe) +0.0912 · CG +0.0863 [+0.0761, +0.0963]
+  gat/t05 (0.39) + frozen: g +0.1978 · ensemble (graph + SAGE with the same recipe) +0.0912 · CG +0.1066 [+0.0937, +0.1195]
+  gat/ref (0.52) + head: g +0.2229 · ensemble (graph + SAGE with the same recipe) +0.0720 · CG +0.1509 [+0.1406, +0.1613]
+  gat/ref (0.52) + frozen: g +0.1516 · ensemble (graph + SAGE with the same recipe) +0.0720 · CG +0.0797 [+0.0684, +0.0911]
+
+file letti:
+  results/csv_multiseed/ensemble_D.csv
+  results/csv_multiseed/mid_strength.csv
+  results/csv_multiseed/curve_4seeds.csv

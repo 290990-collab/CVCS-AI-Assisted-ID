@@ -1,0 +1,16 @@
+# kwargs passati a TIPSv2Encoder(**kwargs)
+#
+# varianti: google/tipsv2-b14 (768d, 86M vision) | google/tipsv2-l14 (1024d) |
+#           google/tipsv2-so400m14 (1152d) | google/tipsv2-g14 (1536d)
+# NOTA: TIPSv2 si carica con trust_remote_code=True (codice di modeling custom
+# scaricato al primo uso, richiede il pacchetto `sentencepiece`) e vuole i pixel
+# in [0, 1] SENZA normalizzazione ImageNet.
+hf_name: google/tipsv2-b14
+image_size: 448          # risoluzione di pretrain (32x32=1024 patch). 224 e' legale
+                         # (multiplo di 14, pos-embed interpolate) e costa 4x meno,
+                         # ma allinea il confronto agli altri encoder invece che al
+                         # regime nativo del checkpoint. Sweep: multipli di 14.
+patch_size: 14           # lato della patch ViT: SOLO per il danno `patch` (B/14; il costruttore legge model.config.patch_size); evaluate lo confronta col modello caricato
+pooling: natural         # natural(CLS) | mean | gem sui patch token
+gem_p: 3.0               # esponente del GeM (solo se pooling=gem)
+extraction_layer: -1     # layer da cui leggere i token: -1 ultimo, -2 penultimo, ...

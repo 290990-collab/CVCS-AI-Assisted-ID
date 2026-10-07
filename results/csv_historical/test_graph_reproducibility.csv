@@ -1,0 +1,2 @@
+split,system,run_a,run_b,mean_a,mean_b,mean_diff,n_queries_differing,max_abs_diff,n
+test,graph_gat_asymrob,results/perquery/fusion_test (alpha=0),results/perquery/graph_test_B/graph_gat_asymrob,0.469978,0.470368,0.00039,110,0.444444,2000
